@@ -3,7 +3,7 @@ use macroquad::color::colors;
 use macroquad::prelude::*;
 
 use crate::ant::{Ant, Nest};
-use crate::grid::Grid;
+use crate::grid::{Grid, Scents};
 // use crate::grid::{DOWN, Grid, LEFT, RIGHT, SQUARES, UP};
 use crate::pos::{self, Pos};
 
@@ -20,18 +20,18 @@ pub struct Game {
     nest: Nest,
 }
 
-const ANTS_NUMBER: usize = 16;
+const ANTS_NUMBER: usize = 64;
 const NEST_POS: Pos = Pos::new(40, 70);
 
 impl Game {
     pub fn new() -> Self {
         let mut grid = Grid::new();
-        grid.get_cell_mut(NEST_POS).unwrap().set_nest(true);
+        grid.get_cell_mut(NEST_POS).unwrap().set_flag(Scents::Nest);
 
-        let mut food_pos: Pos = Pos::new(20, 40);
+        let mut food_pos: Pos = Pos::new(10, 20);
 
         for _ in 0..50 {
-            grid.get_cell_mut(food_pos).unwrap().set_food(true);
+            grid.get_cell_mut(food_pos).unwrap().set_flag(Scents::Food);
             let new_pos = food_pos + pos::dirs::rand();
             if grid.is_valid(new_pos) {
                 food_pos = new_pos;
@@ -44,7 +44,7 @@ impl Game {
 
             // let mut fruit: Point = (rand::gen_range(0, SQUARES), rand::gen_range(0, SQUARES));
             // let mut score = 0;
-            speed: 0.05,
+            speed: 0.15,
             last_update: get_time(),
             navigation_lock: false,
             game_over: false,

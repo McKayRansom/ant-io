@@ -1,7 +1,5 @@
 use std::ops::{Add, Sub};
 
-
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Pos {
     pub x: i16,
@@ -13,13 +11,19 @@ pub mod dirs {
 
     use super::Pos;
 
+    pub const UP_LEFT: Pos = Pos::new(-1, -1);
     pub const UP: Pos = Pos::new(0, -1);
-    pub const DOWN: Pos = Pos::new(0, 1);
+    pub const UP_RIGHT: Pos = Pos::new(1, -1);
     pub const RIGHT: Pos = Pos::new(1, 0);
+    pub const DOWN_RIGHT: Pos = Pos::new(1, 1);
+    pub const DOWN: Pos = Pos::new(0, 1);
+    pub const DOWN_LEFT: Pos = Pos::new(-1, 1);
     pub const LEFT: Pos = Pos::new(-1, 0);
-    pub const NONE: Pos = Pos::new(0, 0);
+    pub const _NONE: Pos = Pos::new(0, 0);
 
-    pub const ALL: &[Pos] = &[UP, DOWN, LEFT, RIGHT];
+    pub const ALL: &[Pos] = &[
+        UP_LEFT, UP, UP_RIGHT, RIGHT, DOWN_RIGHT, DOWN, DOWN_LEFT, LEFT,
+    ];
     pub const _ALL_REV: &[Pos] = &[RIGHT, LEFT, DOWN, UP];
 
     pub fn rand() -> Pos {
@@ -28,20 +32,42 @@ pub mod dirs {
 
     pub fn rotate_right(pos: Pos) -> Pos {
         match pos {
-            UP => RIGHT,
-            RIGHT => DOWN,
-            DOWN => LEFT,
-            LEFT => UP,
+            UP_LEFT => UP,
+            UP => UP_RIGHT,
+            UP_RIGHT => RIGHT,
+            RIGHT => DOWN_RIGHT,
+            DOWN_RIGHT => DOWN,
+            DOWN => DOWN_LEFT,
+            DOWN_LEFT => LEFT,
+            LEFT => UP_LEFT,
             _ => panic!("Invalid dir: {:?}", pos),
         }
     }
 
     pub fn rotate_left(pos: Pos) -> Pos {
         match pos {
-            UP => LEFT,
-            RIGHT => UP,
-            DOWN => RIGHT,
-            LEFT => DOWN,
+            UP_LEFT => LEFT,
+            UP => UP_LEFT,
+            UP_RIGHT => UP,
+            RIGHT => UP_RIGHT,
+            DOWN_RIGHT => RIGHT,
+            DOWN => DOWN_RIGHT,
+            DOWN_LEFT => DOWN,
+            LEFT => DOWN_LEFT,
+            _ => panic!("Invalid dir: {:?}", pos),
+        }
+    }
+
+    pub fn invert(pos: Pos) -> Pos {
+        match pos {
+            UP_LEFT => DOWN_RIGHT,
+            UP => DOWN,
+            UP_RIGHT => DOWN_LEFT,
+            RIGHT => LEFT,
+            DOWN_RIGHT => UP_LEFT,
+            DOWN => UP,
+            DOWN_LEFT => UP_RIGHT,
+            LEFT => RIGHT,
             _ => panic!("Invalid dir: {:?}", pos),
         }
     }
@@ -49,7 +75,7 @@ pub mod dirs {
 
 impl Pos {
     pub const fn new(x: i16, y: i16) -> Self {
-        Self {x, y}
+        Self { x, y }
     }
 }
 
@@ -68,7 +94,7 @@ impl Add<Pos> for Pos {
     fn add(self, rhs: Pos) -> Self::Output {
         Pos {
             x: self.x + rhs.x,
-            y: self.y + rhs.y
+            y: self.y + rhs.y,
         }
     }
 }
@@ -79,7 +105,7 @@ impl Sub<Pos> for Pos {
     fn sub(self, rhs: Pos) -> Self::Output {
         Pos {
             x: self.x - rhs.x,
-            y: self.y - rhs.y
+            y: self.y - rhs.y,
         }
     }
 }

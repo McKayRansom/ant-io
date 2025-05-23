@@ -8,58 +8,52 @@ use macroquad::{
 
 use crate::pos::Pos;
 
+#[derive(Debug, Clone, Copy)]
+pub enum Scents {
+    Food,
+    Nest,
+    Len,
+}
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Cell {
-    food: bool,
-    nest: bool,
-    food_scent: u8,
-    nest_scent: u8,
+    flags: u16,
+    scents: [u8; Scents::Len as usize],
 }
 
 impl Cell {
-    pub fn is_food(&self) -> bool {
-        self.food
+    pub fn has_flag(&self, flag: Scents) -> bool {
+        self.flags & 1 << flag as usize != 0
     }
-    pub fn is_nest(&self) -> bool {
-        self.nest
+    pub fn set_flag(&mut self, flag: Scents) {
+        self.flags |= 1 << flag as usize;
+    }
+    pub fn clear_flag(&mut self, flag: Scents) {
+        self.flags &= !(1 << flag as usize);
     }
 
-    pub fn take_food(&mut self) -> Option<()> {
-        if self.food {
-            self.food = false;
+    pub fn take_flag(&mut self, flag: Scents) -> Option<()> {
+        if self.has_flag(flag) {
+            self.clear_flag(flag);
             Some(())
         } else {
             None
         }
     }
-    pub fn get_food_scent(&self) -> u8 {
-        self.food_scent
+    pub fn get_scent(&self, scent: Scents) -> u8 {
+        self.scents[scent as usize]
     }
-    pub fn get_nest_scent(&self) -> u8 {
-        self.nest_scent
-    }
-    pub fn set_food_scent(&mut self, scent: u8) {
-        self.food_scent = self.food_scent.max(scent);
-    }
-    pub fn set_nest_scent(&mut self, scent: u8) {
-        self.nest_scent = self.nest_scent.max(scent);
+    pub fn drop_scent(&mut self, scent: Scents, val: u8) {
+        self.scents[scent as usize] = self.scents[scent as usize].max(val)
     }
 
     fn update(&mut self) {
         // self.nest_scent = self.nest_scent.saturating_sub(1);
-        self.food_scent = self.food_scent.saturating_sub(1);
-    }
-
-    pub(crate) fn set_nest(&mut self, arg: bool) {
-        self.nest = arg;
-    }
-
-    pub(crate) fn set_food(&mut self, arg: bool) {
-        self.food = arg;
+        self.scents[Scents::Food as usize] = self.scents[Scents::Food as usize].saturating_sub(1);
     }
 }
 
-pub const SQUARES: i16 = 80;
+pub const SQUARES: i16 = 256;
 
 pub struct Grid {
     occupied: Vec<Vec<Cell>>,
@@ -114,21 +108,22 @@ impl Grid {
             for x in 0..row.len() {
                 let point: Pos = Pos::new(x as i16, y as i16);
                 let cell = &row[x];
-                if cell.is_food() {
+                if cell.has_flag(Scents::Food) {
                     self.draw_cell(point, colors::GREEN);
-                } else if cell.is_nest() {
+                } else if cell.has_flag(Scents::Nest) {
                     self.draw_cell(point, colors::WHITE);
-                } else if cell.food_scent > 0 {
-                    let scent_alpha = cell.food_scent as f32 / u8::MAX as f32;
-                    let mut color = colors::RED;
-                    color.a = scent_alpha;
-                    self.draw_cell(point, color);
-                } else if cell.nest_scent > 0 {
-                    let scent_alpha = cell.nest_scent as f32 / u8::MAX as f32;
-                    let mut color = colors::LIGHTGRAY;
-                    color.a = scent_alpha;
-                    self.draw_cell(point, color);
-                }
+                } 
+                // else if cell.get_scent(Scents::Food) > 0 {
+                //     let scent_alpha = cell.get_scent(Scents::Food) as f32 / u8::MAX as f32;
+                //     let mut color = colors::RED;
+                //     color.a = scent_alpha;
+                //     self.draw_cell(point, color);
+                // } else if cell.get_scent(Scents::Nest) > 0 {
+                //     let scent_alpha = cell.get_scent(Scents::Nest) as f32 / u8::MAX as f32;
+                //     let mut color = colors::LIGHTGRAY;
+                //     color.a = scent_alpha;
+                //     self.draw_cell(point, color);
+                // }
             }
         }
     }
@@ -150,6 +145,14 @@ impl Grid {
     pub fn get_cell_mut(&mut self, pos: Pos) -> Option<&mut Cell> {
         if self.is_valid(pos) {
             Some(&mut self.occupied[pos.y as usize][pos.x as usize])
+        } else {
+            None
+        }
+    }
+
+    pub fn get_cell(&self, pos: Pos) -> Option<&Cell> {
+        if self.is_valid(pos) {
+            Some(&self.occupied[pos.y as usize][pos.x as usize])
         } else {
             None
         }
