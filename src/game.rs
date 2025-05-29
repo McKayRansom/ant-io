@@ -65,17 +65,23 @@ impl Game {
     }
 
     pub fn update_player(&mut self) {
-        self.player.dir = if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
-            dirs::RIGHT
+        let mut input_dir = dirs::NONE;
+        if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
+            input_dir.x = 1;
         } else if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
-            dirs::LEFT
-        } else if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
-            dirs::UP
+            input_dir.x = -1;
+        } 
+        if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
+            input_dir.y = -1;
         } else if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
-            dirs::DOWN
-        } else {
-            self.player.dir
-        };
+            input_dir.y = 1;
+        } 
+
+        self.player.dir = input_dir;
+        if self.player.dir == dirs::NONE {
+            // jankcity
+            self.player.dir = dirs::LEFT;
+        }
 
         let colony = &mut self.ant_colonies[0];
         let _ = self.player.update_food_scents(
@@ -84,6 +90,7 @@ impl Game {
             &mut colony.food,
             colony.faction,
         );
+        self.player.dir = input_dir;
         if self.player.try_move(
             self.player.pos + self.player.dir,
             &mut self.map,

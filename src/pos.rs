@@ -19,7 +19,7 @@ pub mod dirs {
     pub const DOWN: Pos = Pos::new(0, 1);
     pub const DOWN_LEFT: Pos = Pos::new(-1, 1);
     pub const LEFT: Pos = Pos::new(-1, 0);
-    pub const _NONE: Pos = Pos::new(0, 0);
+    pub const NONE: Pos = Pos::new(0, 0);
 
     pub const ALL: &[Pos] = &[
         UP_LEFT, UP, UP_RIGHT, RIGHT, DOWN_RIGHT, DOWN, DOWN_LEFT, LEFT,

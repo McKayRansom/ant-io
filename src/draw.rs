@@ -4,7 +4,7 @@ use macroquad::{
 };
 
 use crate::{
-    ant::{Ant, AntColony, Scents},
+    ant::{Ant, AntColony},
     map::{CellType, Faction, Map},
     pos::Pos,
 };
