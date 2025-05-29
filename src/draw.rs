@@ -4,7 +4,7 @@ use macroquad::{
 };
 
 use crate::{
-    ant::{Ant, AntColony},
+    ant::{Ant, AntColony, Scents},
     map::{CellType, Faction, Map},
     pos::Pos,
 };
@@ -30,18 +30,6 @@ pub fn draw_map(map: &Map) {
             } else if matches!(cell.m_type, CellType::Nest(_)) {
                 draw_cell(map, point, colors::WHITE);
             }
-            // draw scents
-            // else if cell.get_scent(Scents::Food) > 0 {
-            //     let scent_alpha = cell.get_scent(Scents::Food) as f32 / u8::MAX as f32;
-            //     let mut color = colors::RED;
-            //     color.a = scent_alpha;
-            //     self.draw_cell(point, color);
-            // } else if cell.get_scent(Scents::Nest) > 0 {
-            //     let scent_alpha = cell.get_scent(Scents::Nest) as f32 / u8::MAX as f32;
-            //     let mut color = colors::LIGHTGRAY;
-            //     color.a = scent_alpha;
-            //     self.draw_cell(point, color);
-            // }
         }
     }
 }
@@ -50,6 +38,20 @@ pub fn draw_colony(colony: &AntColony, map: &Map) {
     for ants in &colony.ants {
         draw_ant(ants, &map, colony.faction);
     }
+    // for (pos, cell) in colony.scents.iter() {
+    //     // draw scents
+    //     if cell.get_scent(Scents::Food) > 0 {
+    //         let scent_alpha = cell.get_scent(Scents::Food) as f32 / u8::MAX as f32;
+    //         let mut color = colors::RED;
+    //         color.a = scent_alpha;
+    //         draw_cell(map, *pos, color);
+    //     } else if cell.get_scent(Scents::Nest) > 0 {
+    //         let scent_alpha = cell.get_scent(Scents::Nest) as f32 / u8::MAX as f32;
+    //         let mut color = colors::LIGHTGRAY;
+    //         color.a = scent_alpha;
+    //         draw_cell(map, *pos, color);
+    //     }
+    // }
 }
 
 pub fn draw_cell(map: &Map, pos: Pos, color: Color) {

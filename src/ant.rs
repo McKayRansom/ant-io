@@ -88,7 +88,7 @@ impl AntColony {
         // }
         // }
 
-        if self.food > STARTING_FOOD {
+        if self.food > self.ants.len() {
             // create new ants!
             self.ants.push(Ant::new(self.nest_pos, self.faction));
             self.food -= 1;
@@ -104,6 +104,9 @@ pub struct Ant {
     food_scent: u8,
     pub dir: Pos,
     occupy: Rc<Faction>,
+    // more optimal ways to do this (i.e. for the whole colony)
+    // also would be better if we had to go back to the colony to eat...
+    pub hunger: u8,
 }
 
 impl Ant {
@@ -115,6 +118,7 @@ impl Ant {
             food_scent: 0,
             nest_scent: u8::MAX,
             occupy: Rc::new(faction),
+            hunger: rand::gen_range(u8::MAX / 2, u8::MAX)
         }
     }
 
@@ -168,7 +172,7 @@ impl Ant {
             if cell.is_type(CellType::Nest(faction)) {
                 *food += 1;
                 self.food = None;
-                self.nest_scent = u8::MAX;
+                self.nest_scent = u8::MAX - 1;
                 self.dir = invert(self.dir);
                 return None;
             } else {
@@ -182,7 +186,7 @@ impl Ant {
             // find food!
             if let Some(food) = cell.take_type(CellType::Food) {
                 self.food = Some(food);
-                self.food_scent = u8::MAX;
+                self.food_scent = u8::MAX - 1;
                 self.dir = invert(self.dir);
                 return None;
             } else {
@@ -220,6 +224,13 @@ impl Ant {
         faction: Faction,
     ) -> bool {
         let mut next_pos = self.update_food_scents(map, scents, food, faction);
+
+        // TEMP
+        self.hunger = self.hunger.saturating_sub(1);
+        if self.hunger == 0 && *food > 0 {
+            *food = *food - 1;
+            self.hunger = u8::MAX;
+        }
 
         // 25% chance of ignoring best pheremone dir...
         if next_pos.is_none() || rand::rand() < u32::MAX / 4 {
