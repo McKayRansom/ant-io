@@ -1,18 +1,49 @@
-use std::u8;
 
 use macroquad::color::colors;
 use macroquad::prelude::rand;
 
-use crate::grid::{Grid, Scents};
+use crate::map::{Map, Scents};
 
 use crate::pos::dirs::{invert, rotate_left, rotate_right};
 use crate::pos::{Pos, dirs};
 
 // const
 
-#[derive(Default, Debug)]
-pub struct Nest {
-    pub food: usize,
+type Food = usize;
+
+#[derive(Debug)]
+pub struct AntColony {
+    pub food: Food,
+    pub ants: Vec<Ant>,
+}
+
+const STARTING_FOOD: Food = 32;
+const ANTS_NUMBER: usize = 32;
+
+impl AntColony {
+    pub fn new(pos: Pos, map: &mut Map) -> Self {
+        map.get_cell_mut(pos).unwrap().set_flag(Scents::Nest);
+
+        Self {
+            food: STARTING_FOOD,
+            ants: vec![Ant::new(pos); ANTS_NUMBER],
+        }
+    }
+
+    pub fn update(&mut self, grid: &mut Map) {
+        // let mut all_snakes_dead = true;
+        for (_i, ant) in self.ants.iter_mut().enumerate() {
+            ant.update(grid, &mut self.food);
+            //     if i == 0 {
+            //         // player died
+            //         self.game_over = true;
+            //         self.game_won = false;
+            //     }
+            // } else if i != 0 {
+            //     all_snakes_dead = false;
+            // }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -35,7 +66,7 @@ impl Ant {
         }
     }
 
-    fn follow_scent(&self, grid: &Grid, scent: Scents) -> Option<Pos> {
+    fn follow_scent(&self, grid: &Map, scent: Scents) -> Option<Pos> {
         let (_max_scent, pos) = [
             rotate_left(rotate_left(self.dir)),
             rotate_left(self.dir),
@@ -64,14 +95,14 @@ impl Ant {
         if pos != self.pos { Some(pos) } else { None }
     }
 
-    pub fn update(&mut self, grid: &mut Grid, nest: &mut Nest) {
+    pub fn update(&mut self, map: &mut Map, food: &mut Food) {
         // take food
-        let cell = grid.get_cell_mut(self.pos).expect("Ant in invalid pos");
+        let cell = map.get_cell_mut(self.pos).expect("Ant in invalid pos");
 
         let mut next_pos = if self.food.is_some() {
             // find nest!
             if cell.has_flag(Scents::Nest) {
-                nest.food += 1;
+                *food += 1;
                 self.food = None;
                 self.nest_scent = u8::MAX;
                 self.dir = invert(self.dir);
@@ -81,7 +112,7 @@ impl Ant {
                 cell.drop_scent(Scents::Food, self.food_scent);
                 self.food_scent = self.food_scent.saturating_sub(2);
 
-                self.follow_scent(grid, Scents::Nest)
+                self.follow_scent(map, Scents::Nest)
             }
         } else {
             // find food!
@@ -95,7 +126,7 @@ impl Ant {
                 cell.drop_scent(Scents::Nest, self.nest_scent);
                 self.nest_scent = self.nest_scent.saturating_sub(1);
 
-                self.follow_scent(grid, Scents::Food)
+                self.follow_scent(map, Scents::Food)
             }
         };
 
@@ -117,7 +148,7 @@ impl Ant {
         }
 
         let next_pos = next_pos.unwrap();
-        if grid.is_valid(next_pos) {
+        if map.is_valid(next_pos) {
             self.dir = next_pos - self.pos;
             self.pos = next_pos;
         } else {
@@ -151,7 +182,7 @@ impl Ant {
         // false
     }
 
-    pub fn draw(&self, grid: &Grid) {
+    pub fn draw(&self, grid: &Map) {
         grid.draw_cell(
             self.pos,
             if self.food.is_none() {

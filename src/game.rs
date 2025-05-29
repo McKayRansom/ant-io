@@ -1,55 +1,59 @@
-
 use macroquad::color::colors;
-use macroquad::prelude::*;
+use macroquad::{prelude::*, rand};
 
-use crate::ant::{Ant, Nest};
-use crate::grid::{Grid, Scents};
+use crate::ant::AntColony;
+use crate::map::{Map, Scents};
 // use crate::grid::{DOWN, Grid, LEFT, RIGHT, SQUARES, UP};
 use crate::pos::{self, Pos};
 
 pub struct Game {
-    grid: Grid,
-
-    ants: Vec<Ant>,
+    map: Map,
 
     speed: f64,
     last_update: f64,
     navigation_lock: bool,
     game_over: bool,
     pub game_won: bool,
-    nest: Nest,
+    nest: AntColony,
 }
 
-const ANTS_NUMBER: usize = 64;
-const NEST_POS: Pos = Pos::new(40, 70);
+const NEST_POS: Pos = Pos::new(40, 60);
+
+fn drop_food_bunch(map: &mut Map) {
+    let mut food_pos = (
+        rand::gen_range(0, map.size.x),
+        rand::gen_range(0, map.size.y),
+    )
+        .into();
+    for _ in 0..rand::gen_range(10, 70) {
+        let Some(cell) = map.get_cell_mut(food_pos) else {
+            continue;
+        };
+        cell.set_flag(Scents::Food);
+
+        let new_pos = food_pos + pos::dirs::rand();
+        if map.is_valid(new_pos) {
+            food_pos = new_pos;
+        }
+    }
+}
 
 impl Game {
     pub fn new() -> Self {
-        let mut grid = Grid::new();
-        grid.get_cell_mut(NEST_POS).unwrap().set_flag(Scents::Nest);
+        let mut map = Map::new();
 
-        let mut food_pos: Pos = Pos::new(10, 20);
-
-        for _ in 0..50 {
-            grid.get_cell_mut(food_pos).unwrap().set_flag(Scents::Food);
-            let new_pos = food_pos + pos::dirs::rand();
-            if grid.is_valid(new_pos) {
-                food_pos = new_pos;
-            }
-        }
+        drop_food_bunch(&mut map);
 
         Self {
-            grid,
-            ants: vec![Ant::new(NEST_POS); ANTS_NUMBER],
-
+            nest: AntColony::new(NEST_POS, &mut map),
+            map,
             // let mut fruit: Point = (rand::gen_range(0, SQUARES), rand::gen_range(0, SQUARES));
             // let mut score = 0;
-            speed: 0.15,
+            speed: 0.5,
             last_update: get_time(),
             navigation_lock: false,
             game_over: false,
             game_won: true,
-            nest: Nest::default(),
         }
     }
 
@@ -84,24 +88,18 @@ impl Game {
             if get_time() - self.last_update > self.speed {
                 self.last_update = get_time();
 
-                // let mut all_snakes_dead = true;
-                for (_i, ant) in self.ants.iter_mut().enumerate() {
-                    ant.update(&mut self.grid, &mut self.nest);
-                    //     if i == 0 {
-                    //         // player died
-                    //         self.game_over = true;
-                    //         self.game_won = false;
-                    //     }
-                    // } else if i != 0 {
-                    //     all_snakes_dead = false;
-                    // }
-                }
-                self.grid.update();
+                self.nest.update(&mut self.map);
+
+                self.map.update();
                 // if all_snakes_dead {
                 //     self.game_won = true;
                 //     self.game_over = true;
                 // }
                 self.navigation_lock = false;
+
+                if rand::gen_range(0, 50) == 0 {
+                    drop_food_bunch(&mut self.map);
+                }
             }
         }
 
@@ -112,18 +110,26 @@ impl Game {
 
         clear_background(colors::BLACK);
 
-        self.grid.update_size();
-        self.grid.draw();
+        self.map.update_size();
+        self.map.draw();
 
-        for ants in &self.ants {
-            ants.draw(&self.grid);
+        for ants in &self.nest.ants {
+            ants.draw(&self.map);
         }
+
+        draw_text(
+            format!("Pop: {}", self.nest.ants.len()).as_str(),
+            10.,
+            20.,
+            24.,
+            WHITE,
+        );
 
         draw_text(
             format!("Food: {}", self.nest.food).as_str(),
             10.,
-            20.,
-            20.,
+            40.,
+            24.,
             WHITE,
         );
 

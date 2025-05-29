@@ -2,7 +2,7 @@ use game::Game;
 use macroquad::window::next_frame;
 
 
-mod grid;
+mod map;
 mod ant;
 mod game;
 mod pos;

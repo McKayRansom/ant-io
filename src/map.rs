@@ -1,5 +1,3 @@
-use std::u8;
-
 use macroquad::{
     color::{Color, colors},
     shapes::draw_rectangle,
@@ -53,11 +51,11 @@ impl Cell {
     }
 }
 
-pub const SQUARES: i16 = 256;
+pub const SQUARES: i16 = 64;
 
-pub struct Grid {
+pub struct Map {
     occupied: Vec<Vec<Cell>>,
-    size: Pos,
+    pub size: Pos,
 
     game_size: f32,
     offset_x: f32,
@@ -65,9 +63,9 @@ pub struct Grid {
     sq_size: f32,
 }
 
-impl Grid {
+impl Map {
     pub fn new() -> Self {
-        let mut grid: Grid = Self {
+        let mut map: Map = Self {
             occupied: vec![vec![Cell::default(); SQUARES as usize]; SQUARES as usize],
             size: Pos::new(SQUARES, SQUARES),
             game_size: 0.,
@@ -75,8 +73,8 @@ impl Grid {
             offset_y: 0.,
             sq_size: 0.,
         };
-        grid.update_size();
-        grid
+        map.update_size();
+        map
     }
 
     pub fn update_size(&mut self) {
@@ -113,6 +111,7 @@ impl Grid {
                 } else if cell.has_flag(Scents::Nest) {
                     self.draw_cell(point, colors::WHITE);
                 } 
+                // draw scents
                 // else if cell.get_scent(Scents::Food) > 0 {
                 //     let scent_alpha = cell.get_scent(Scents::Food) as f32 / u8::MAX as f32;
                 //     let mut color = colors::RED;
