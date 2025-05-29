@@ -6,6 +6,7 @@ mod map;
 mod ant;
 mod game;
 mod pos;
+mod draw;
 
 
 #[macroquad::main("Ant-IO")]

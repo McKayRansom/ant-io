@@ -1,66 +1,86 @@
-use macroquad::{
-    color::{Color, colors},
-    shapes::draw_rectangle,
-    window::{screen_height, screen_width},
-};
+use std::rc::{Rc, Weak};
+
+use macroquad::window::{screen_height, screen_width};
 
 use crate::pos::Pos;
 
-#[derive(Debug, Clone, Copy)]
-pub enum Scents {
+pub type Faction = u8;
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum CellType {
+    #[default]
+    Empty,
     Food,
-    Nest,
-    Len,
+    Nest(Faction),
+    // Rock,
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone)]
 pub struct Cell {
-    flags: u16,
-    scents: [u8; Scents::Len as usize],
+    pub m_type: CellType,
+
+    // not so sure about this one fam
+    occupied: Weak<Faction>,
 }
 
 impl Cell {
-    pub fn has_flag(&self, flag: Scents) -> bool {
-        self.flags & 1 << flag as usize != 0
+    pub fn is_type(&self, flag: CellType) -> bool {
+        self.m_type == flag
     }
-    pub fn set_flag(&mut self, flag: Scents) {
-        self.flags |= 1 << flag as usize;
+    pub fn set_type(&mut self, flag: CellType) {
+        if self.m_type == CellType::Empty {
+            self.m_type = flag
+        }
     }
-    pub fn clear_flag(&mut self, flag: Scents) {
-        self.flags &= !(1 << flag as usize);
-    }
+    // pub fn clear_type(&mut self, _flag: CellType) {
+    //     self.m_type = CellType::Empty
+    // }
 
-    pub fn take_flag(&mut self, flag: Scents) -> Option<()> {
-        if self.has_flag(flag) {
-            self.clear_flag(flag);
+    pub fn take_type(&mut self, flag: CellType) -> Option<()> {
+        if self.is_type(flag) {
+            self.m_type = CellType::Empty;
             Some(())
         } else {
             None
         }
     }
-    pub fn get_scent(&self, scent: Scents) -> u8 {
-        self.scents[scent as usize]
-    }
-    pub fn drop_scent(&mut self, scent: Scents, val: u8) {
-        self.scents[scent as usize] = self.scents[scent as usize].max(val)
+
+    pub fn _is_occupied(&self) -> bool {
+        self.occupied.strong_count() > 0
     }
 
-    fn update(&mut self) {
-        // self.nest_scent = self.nest_scent.saturating_sub(1);
-        self.scents[Scents::Food as usize] = self.scents[Scents::Food as usize].saturating_sub(1);
+    pub fn _occupied_faction(&self) -> Option<Faction> {
+        Weak::<Faction>::upgrade(&self.occupied).map(|rc| *rc)
+    }
+
+    pub fn try_occupy(&mut self, faction: Faction) -> Option<Rc<Faction>> {
+        if let Some(rc) = self.occupied.upgrade() {
+            // occupied
+            if *rc == faction { Some(rc) } else { None }
+        } else {
+            // empty
+            let rc = Rc::new(faction);
+            self.occupied = Rc::<Faction>::downgrade(&rc);
+            Some(rc)
+        }
     }
 }
 
 pub const SQUARES: i16 = 64;
 
 pub struct Map {
-    occupied: Vec<Vec<Cell>>,
+    pub occupied: Vec<Vec<Cell>>,
     pub size: Pos,
 
-    game_size: f32,
-    offset_x: f32,
-    offset_y: f32,
-    sq_size: f32,
+    pub game_size: f32,
+    pub offset_x: f32,
+    pub offset_y: f32,
+    pub sq_size: f32,
+}
+
+pub enum OccupyError {
+    Solid,
+    Fight,
 }
 
 impl Map {
@@ -84,58 +104,7 @@ impl Map {
         self.sq_size = (screen_height() - self.offset_y * 2.) / SQUARES as f32;
     }
 
-    pub fn update(&mut self) {
-        for row in self.occupied.iter_mut() {
-            for cell in row.iter_mut() {
-                cell.update();
-            }
-        }
-    }
-
-    pub fn draw(&self) {
-        draw_rectangle(
-            self.offset_x,
-            self.offset_y,
-            self.game_size - 20.,
-            self.game_size - 20.,
-            colors::BLACK,
-        );
-
-        for y in 0..self.occupied.len() {
-            let row = &self.occupied[y];
-            for x in 0..row.len() {
-                let point: Pos = Pos::new(x as i16, y as i16);
-                let cell = &row[x];
-                if cell.has_flag(Scents::Food) {
-                    self.draw_cell(point, colors::GREEN);
-                } else if cell.has_flag(Scents::Nest) {
-                    self.draw_cell(point, colors::WHITE);
-                } 
-                // draw scents
-                // else if cell.get_scent(Scents::Food) > 0 {
-                //     let scent_alpha = cell.get_scent(Scents::Food) as f32 / u8::MAX as f32;
-                //     let mut color = colors::RED;
-                //     color.a = scent_alpha;
-                //     self.draw_cell(point, color);
-                // } else if cell.get_scent(Scents::Nest) > 0 {
-                //     let scent_alpha = cell.get_scent(Scents::Nest) as f32 / u8::MAX as f32;
-                //     let mut color = colors::LIGHTGRAY;
-                //     color.a = scent_alpha;
-                //     self.draw_cell(point, color);
-                // }
-            }
-        }
-    }
-
-    pub fn draw_cell(&self, pos: Pos, color: Color) {
-        draw_rectangle(
-            self.offset_x + pos.x as f32 * self.sq_size,
-            self.offset_y + pos.y as f32 * self.sq_size,
-            self.sq_size,
-            self.sq_size,
-            color,
-        );
-    }
+    pub fn update(&mut self) {}
 
     pub fn is_valid(&self, pos: Pos) -> bool {
         pos.x >= 0 && pos.x < self.size.x && pos.y >= 0 && pos.y < self.size.y
@@ -155,6 +124,15 @@ impl Map {
         } else {
             None
         }
+    }
+
+    pub(crate) fn occupy(
+        &mut self,
+        next_pos: Pos,
+        faction: Faction,
+    ) -> Result<Rc<Faction>, OccupyError> {
+        let cell = self.get_cell_mut(next_pos).ok_or(OccupyError::Solid)?;
+        cell.try_occupy(faction).ok_or(OccupyError::Fight)
     }
 
     // pub fn occupy(&mut self, pos: Point) -> bool {
