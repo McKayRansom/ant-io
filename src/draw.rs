@@ -4,12 +4,26 @@ use macroquad::{
 };
 
 use crate::{
-    ant::{Ant, AntColony},
+    ant::{Ant, AntColony, Scents},
+    game::Game,
     map::{CellType, Faction, Map},
     pos::Pos,
 };
 
 const FOOD_COLOR: Color = colors::GREEN;
+
+pub fn draw_game(game: &Game) {
+    draw_map(&game.map);
+
+    if game.show_scents != 0 {
+        draw_scents(&game.ant_colonies[game.show_scents as usize - 1], &game.map);
+    }
+    for colony in &game.ant_colonies {
+        draw_colony(colony, &game.map);
+    }
+
+    draw_player(&game.player, &game.map);
+}
 
 pub fn draw_map(map: &Map) {
     draw_rectangle(
@@ -34,24 +48,27 @@ pub fn draw_map(map: &Map) {
     }
 }
 
+pub fn draw_scents(colony: &AntColony, map: &Map) {
+    for (pos, cell) in colony.scents.iter() {
+        // draw scents
+        if cell.get_scent(Scents::Food) > 0 {
+            let scent_alpha = cell.get_scent(Scents::Food) as f32 / u8::MAX as f32;
+            let mut color = colors::RED;
+            color.a = scent_alpha;
+            draw_cell(map, *pos, color);
+        } else if cell.get_scent(Scents::Nest) > 0 {
+            let scent_alpha = cell.get_scent(Scents::Nest) as f32 / u8::MAX as f32;
+            let mut color = colors::LIGHTGRAY;
+            color.a = scent_alpha;
+            draw_cell(map, *pos, color);
+        }
+    }
+}
+
 pub fn draw_colony(colony: &AntColony, map: &Map) {
     for ants in &colony.ants {
         draw_ant(ants, &map, colony.faction);
     }
-    // for (pos, cell) in colony.scents.iter() {
-    //     // draw scents
-    //     if cell.get_scent(Scents::Food) > 0 {
-    //         let scent_alpha = cell.get_scent(Scents::Food) as f32 / u8::MAX as f32;
-    //         let mut color = colors::RED;
-    //         color.a = scent_alpha;
-    //         draw_cell(map, *pos, color);
-    //     } else if cell.get_scent(Scents::Nest) > 0 {
-    //         let scent_alpha = cell.get_scent(Scents::Nest) as f32 / u8::MAX as f32;
-    //         let mut color = colors::LIGHTGRAY;
-    //         color.a = scent_alpha;
-    //         draw_cell(map, *pos, color);
-    //     }
-    // }
 }
 
 pub fn draw_cell(map: &Map, pos: Pos, color: Color) {

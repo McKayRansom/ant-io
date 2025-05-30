@@ -2,21 +2,48 @@ use macroquad::color::colors;
 use macroquad::{prelude::*, rand};
 
 use crate::ant::{Ant, AntColony};
-use crate::draw::{color, draw_colony, draw_map, draw_player};
-use crate::map::Map;
+use crate::draw::{color, draw_game};
+use crate::map::{Faction, Map};
 // use crate::grid::{DOWN, Grid, LEFT, RIGHT, SQUARES, UP};
 use crate::pos::{self, Pos, dirs};
 
-pub struct Game {
-    map: Map,
+pub enum Speed {
+    SLOW,
+    FAST,
+}
 
-    speed: f64,
+const SPEED_FAST: f64 = 0.1;
+const SPEED_SLOW: f64 = 0.25;
+
+impl Speed {
+    pub fn val(&self) -> f64 {
+        match self {
+            Speed::SLOW => SPEED_FAST,
+            Speed::FAST => SPEED_SLOW,
+        }
+    }
+    
+    fn invert(&self) -> Speed {
+        match self {
+            Speed::SLOW => Speed::FAST,
+            Speed::FAST => Speed::SLOW,
+        }
+    }
+}
+
+
+pub struct Game {
+    pub map: Map,
+
+    speed: Speed,
     last_update: f64,
     navigation_lock: bool,
     game_over: bool,
     pub game_won: bool,
-    ant_colonies: Vec<AntColony>,
-    player: Ant,
+    pub ant_colonies: Vec<AntColony>,
+    pub player: Ant,
+    pub show_scents: Faction,
+    pub paused: bool,
 }
 
 const NEST_POS: Pos = Pos::new(40 * 2, 60 * 2);
@@ -55,12 +82,14 @@ impl Game {
             map,
             // let mut fruit: Point = (rand::gen_range(0, SQUARES), rand::gen_range(0, SQUARES));
             // let mut score = 0;
-            speed: 0.1,
+            speed: Speed::SLOW,
             last_update: get_time(),
             navigation_lock: false,
             game_over: false,
             game_won: true,
             player: Ant::new(NEST_POS, 1),
+            show_scents: 0,
+            paused: false,
         }
     }
 
@@ -70,12 +99,39 @@ impl Game {
             input_dir.x = 1;
         } else if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
             input_dir.x = -1;
-        } 
+        }
         if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
             input_dir.y = -1;
         } else if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
             input_dir.y = 1;
-        } 
+        }
+
+        if is_key_down(KeyCode::LeftShift) {
+            self.player.food_scent = u8::MAX;
+        } else if self.player.food_scent == u8::MAX - 2 {
+            self.player.food_scent = 0;
+        }
+        if is_key_pressed(KeyCode::Key1) {
+            if self.show_scents == 1 {
+                self.show_scents = 0;
+            } else {
+                self.show_scents = 1;
+            }
+        }
+        if is_key_pressed(KeyCode::Key2) {
+            if self.show_scents == 2 {
+                self.show_scents = 0;
+            } else {
+                self.show_scents = 2;
+            }
+        }
+
+        if is_key_pressed(KeyCode::Space) {
+            self.paused = !self.paused;
+        }
+        if is_key_pressed(KeyCode::F) {
+            self.speed = self.speed.invert();
+        }
 
         self.player.dir = input_dir;
         if self.player.dir == dirs::NONE {
@@ -104,7 +160,7 @@ impl Game {
 
     pub fn update(&mut self, _won: u32, _lost: u32) -> bool {
         if !self.game_over {
-            if get_time() - self.last_update > self.speed {
+            if !self.paused && get_time() - self.last_update > self.speed.val() {
                 self.last_update = get_time();
 
                 for colony in self.ant_colonies.iter_mut() {
@@ -134,13 +190,7 @@ impl Game {
         clear_background(colors::BLACK);
 
         self.map.update_size();
-        draw_map(&self.map);
-
-        for colony in &self.ant_colonies {
-            draw_colony(colony, &self.map);
-        }
-
-        draw_player(&self.player, &self.map);
+        draw_game(&self);
 
         draw_text(
             format!("Pop: {}", self.ant_colonies[0].ants.len()).as_str(),

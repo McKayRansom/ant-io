@@ -101,7 +101,7 @@ pub struct Ant {
     pub pos: Pos,
     pub food: Option<()>,
     nest_scent: u8,
-    food_scent: u8,
+    pub food_scent: u8,
     pub dir: Pos,
     occupy: Rc<Faction>,
     // more optimal ways to do this (i.e. for the whole colony)
@@ -118,7 +118,7 @@ impl Ant {
             food_scent: 0,
             nest_scent: u8::MAX,
             occupy: Rc::new(faction),
-            hunger: rand::gen_range(u8::MAX / 2, u8::MAX)
+            hunger: rand::gen_range(u8::MAX / 2, u8::MAX),
         }
     }
 
@@ -167,19 +167,24 @@ impl Ant {
         let cell = map.get_cell_mut(self.pos).expect("Ant in invalid pos");
         let scent_cell = scents.entry(self.pos).or_default();
 
+        // mark food scent
+        scent_cell.drop_scent(Scents::Food, self.food_scent);
+        self.food_scent = self.food_scent.saturating_sub(2);
+
+        // mark nest scent
+        scent_cell.drop_scent(Scents::Nest, self.nest_scent);
+        self.nest_scent = self.nest_scent.saturating_sub(1);
+
         if self.food.is_some() {
             // find nest!
             if cell.is_type(CellType::Nest(faction)) {
                 *food += 1;
                 self.food = None;
                 self.nest_scent = u8::MAX - 1;
+                self.food_scent = 0;
                 self.dir = invert(self.dir);
                 return None;
             } else {
-                // mark food scent
-                scent_cell.drop_scent(Scents::Food, self.food_scent);
-                self.food_scent = self.food_scent.saturating_sub(2);
-
                 self.follow_scent(map, scents, Scents::Nest, CellType::Nest(faction))
             }
         } else {
@@ -187,13 +192,10 @@ impl Ant {
             if let Some(food) = cell.take_type(CellType::Food) {
                 self.food = Some(food);
                 self.food_scent = u8::MAX - 1;
+                self.nest_scent = 0;
                 self.dir = invert(self.dir);
                 return None;
             } else {
-                // mark nest scent
-                scent_cell.drop_scent(Scents::Nest, self.nest_scent);
-                self.nest_scent = self.nest_scent.saturating_sub(1);
-
                 self.follow_scent(map, scents, Scents::Food, CellType::Food)
             }
         }
