@@ -19,7 +19,7 @@ pub struct Game {
     player: Ant,
 }
 
-const NEST_POS: Pos = Pos::new(40, 60);
+const NEST_POS: Pos = Pos::new(40 * 2, 60 * 2);
 const NEST_POS_2: Pos = Pos::new(20, 10);
 
 fn drop_food_bunch(map: &mut Map) {

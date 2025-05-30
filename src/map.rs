@@ -66,7 +66,7 @@ impl Cell {
     }
 }
 
-pub const SQUARES: i16 = 64;
+pub const SQUARES: i16 = 128;
 
 pub struct Map {
     pub occupied: Vec<Vec<Cell>>,
