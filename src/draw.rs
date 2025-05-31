@@ -39,10 +39,11 @@ pub fn draw_map(map: &Map) {
         for x in 0..row.len() {
             let point: Pos = Pos::new(x as i16, y as i16);
             let cell = &row[x];
-            if cell.is_type(CellType::Food) {
-                draw_cell(map, point, FOOD_COLOR);
-            } else if matches!(cell.m_type, CellType::Nest(_)) {
-                draw_cell(map, point, colors::WHITE);
+            match cell.m_type {
+                CellType::Empty => {},
+                CellType::Food => draw_cell(map, point, FOOD_COLOR),
+                CellType::Nest(_) => draw_cell(map, point, colors::WHITE),
+                CellType::Rock => draw_cell(map, point, colors::GRAY),
             }
         }
     }

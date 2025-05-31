@@ -1,8 +1,14 @@
-use std::rc::{Rc, Weak};
+use std::{
+    cell::RefCell,
+    rc::{Rc, Weak},
+};
 
-use macroquad::window::{screen_height, screen_width};
+use macroquad::{
+    prelude::rand,
+    window::{screen_height, screen_width},
+};
 
-use crate::pos::Pos;
+use crate::pos::{Pos, dirs};
 
 pub type Faction = u8;
 
@@ -12,7 +18,7 @@ pub enum CellType {
     Empty,
     Food,
     Nest(Faction),
-    // Rock,
+    Rock,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -20,7 +26,7 @@ pub struct Cell {
     pub m_type: CellType,
 
     // not so sure about this one fam
-    occupied: Weak<Faction>,
+    occupied: Weak<RefCell<Faction>>,
 }
 
 impl Cell {
@@ -45,22 +51,28 @@ impl Cell {
         }
     }
 
-    pub fn _is_occupied(&self) -> bool {
-        self.occupied.strong_count() > 0
-    }
+    // pub fn _is_occupied(&self) -> bool {
+    //     self.occupied.strong_count() > 0
+    // }
 
-    pub fn _occupied_faction(&self) -> Option<Faction> {
-        Weak::<Faction>::upgrade(&self.occupied).map(|rc| *rc)
-    }
+    // pub fn _occupied_faction(&self) -> Option<Faction> {
+    //     Weak::<RefCell<Faction>>::upgrade(&self.occupied).map(|rc| *rc)
+    // }
 
-    pub fn try_occupy(&mut self, faction: Faction) -> Option<Rc<Faction>> {
+    pub fn try_occupy(&mut self, faction: Faction) -> Option<Rc<RefCell<Faction>>> {
         if let Some(rc) = self.occupied.upgrade() {
             // occupied
-            if *rc == faction { Some(rc) } else { None }
+            if *rc.borrow() == faction {
+                Some(rc)
+            } else {
+                // Enemy is here! mark that
+                *rc.borrow_mut() = faction;
+                None
+            }
         } else {
             // empty
-            let rc = Rc::new(faction);
-            self.occupied = Rc::<Faction>::downgrade(&rc);
+            let rc = Rc::new(RefCell::new(faction));
+            self.occupied = Rc::<RefCell<Faction>>::downgrade(&rc);
             Some(rc)
         }
     }
@@ -94,7 +106,32 @@ impl Map {
             sq_size: 0.,
         };
         map.update_size();
+        for _ in 0..10 {
+            map.drop_rand_bunch(CellType::Rock);
+        }
+        for _ in 0..10 {
+            map.drop_rand_bunch(CellType::Food);
+        }
         map
+    }
+
+    pub fn drop_rand_bunch(&mut self, t: CellType) {
+        let mut pos = (
+            rand::gen_range(0, self.size.x),
+            rand::gen_range(0, self.size.y),
+        )
+            .into();
+        for _ in 0..rand::gen_range(10, 70) {
+            let Some(cell) = self.get_cell_mut(pos) else {
+                continue;
+            };
+            cell.set_type(t);
+
+            let new_pos = pos + dirs::rand();
+            if self.is_valid(new_pos) {
+                pos = new_pos;
+            }
+        }
     }
 
     pub fn update_size(&mut self) {
@@ -104,7 +141,11 @@ impl Map {
         self.sq_size = (screen_height() - self.offset_y * 2.) / SQUARES as f32;
     }
 
-    pub fn update(&mut self) {}
+    pub fn update(&mut self) {
+        if rand::gen_range(0, 50) == 0 {
+            self.drop_rand_bunch(crate::map::CellType::Food);
+        }
+    }
 
     pub fn is_valid(&self, pos: Pos) -> bool {
         pos.x >= 0 && pos.x < self.size.x && pos.y >= 0 && pos.y < self.size.y
@@ -130,8 +171,11 @@ impl Map {
         &mut self,
         next_pos: Pos,
         faction: Faction,
-    ) -> Result<Rc<Faction>, OccupyError> {
+    ) -> Result<Rc<RefCell<Faction>>, OccupyError> {
         let cell = self.get_cell_mut(next_pos).ok_or(OccupyError::Solid)?;
+        if cell.m_type == CellType::Rock {
+            return Err(OccupyError::Solid);
+        }
         cell.try_occupy(faction).ok_or(OccupyError::Fight)
     }
 

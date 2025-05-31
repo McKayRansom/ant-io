@@ -22,7 +22,7 @@ impl Speed {
             Speed::FAST => SPEED_SLOW,
         }
     }
-    
+
     fn invert(&self) -> Speed {
         match self {
             Speed::SLOW => Speed::FAST,
@@ -30,7 +30,6 @@ impl Speed {
         }
     }
 }
-
 
 pub struct Game {
     pub map: Map,
@@ -49,30 +48,11 @@ pub struct Game {
 const NEST_POS: Pos = Pos::new(40 * 2, 60 * 2);
 const NEST_POS_2: Pos = Pos::new(20, 10);
 
-fn drop_food_bunch(map: &mut Map) {
-    let mut food_pos = (
-        rand::gen_range(0, map.size.x),
-        rand::gen_range(0, map.size.y),
-    )
-        .into();
-    for _ in 0..rand::gen_range(10, 70) {
-        let Some(cell) = map.get_cell_mut(food_pos) else {
-            continue;
-        };
-        cell.set_type(crate::map::CellType::Food);
-
-        let new_pos = food_pos + pos::dirs::rand();
-        if map.is_valid(new_pos) {
-            food_pos = new_pos;
-        }
-    }
-}
-
 impl Game {
     pub fn new() -> Self {
         let mut map = Map::new();
 
-        drop_food_bunch(&mut map);
+        map.drop_rand_bunch(crate::map::CellType::Food);
 
         Self {
             ant_colonies: vec![
@@ -93,7 +73,7 @@ impl Game {
         }
     }
 
-    pub fn update_player(&mut self) {
+    pub fn update_player_input(&mut self) {
         let mut input_dir = dirs::NONE;
         if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
             input_dir.x = 1;
@@ -105,6 +85,7 @@ impl Game {
         } else if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
             input_dir.y = 1;
         }
+        self.player.dir = input_dir;
 
         if is_key_down(KeyCode::LeftShift) {
             self.player.food_scent = u8::MAX;
@@ -133,20 +114,10 @@ impl Game {
             self.speed = self.speed.invert();
         }
 
-        self.player.dir = input_dir;
-        if self.player.dir == dirs::NONE {
-            // jankcity
-            self.player.dir = dirs::LEFT;
-        }
-
+    }
+    pub fn update_player(&mut self) {
         let colony = &mut self.ant_colonies[0];
-        let _ = self.player.update_food_scents(
-            &mut self.map,
-            &mut colony.scents,
-            &mut colony.food,
-            colony.faction,
-        );
-        self.player.dir = input_dir;
+        self.player.update_scents(&mut colony.scents);
         if self.player.try_move(
             self.player.pos + self.player.dir,
             &mut self.map,
@@ -159,6 +130,7 @@ impl Game {
     }
 
     pub fn update(&mut self, _won: u32, _lost: u32) -> bool {
+        self.update_player_input();
         if !self.game_over {
             if !self.paused && get_time() - self.last_update > self.speed.val() {
                 self.last_update = get_time();
@@ -174,9 +146,6 @@ impl Game {
                 // }
                 self.navigation_lock = false;
 
-                if rand::gen_range(0, 50) == 0 {
-                    drop_food_bunch(&mut self.map);
-                }
 
                 self.update_player();
             }
