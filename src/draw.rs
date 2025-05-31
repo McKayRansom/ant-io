@@ -55,12 +55,12 @@ pub fn draw_scents(colony: &AntColony, map: &Map) {
         if cell.get_scent(Scents::Food) > 0 {
             let scent_alpha = cell.get_scent(Scents::Food) as f32 / u8::MAX as f32;
             let mut color = colors::RED;
-            color.a = scent_alpha;
+            color.a = scent_alpha / 2.;
             draw_cell(map, *pos, color);
         } else if cell.get_scent(Scents::Nest) > 0 {
             let scent_alpha = cell.get_scent(Scents::Nest) as f32 / u8::MAX as f32;
             let mut color = colors::LIGHTGRAY;
-            color.a = scent_alpha;
+            color.a = scent_alpha / 2.;
             draw_cell(map, *pos, color);
         }
     }

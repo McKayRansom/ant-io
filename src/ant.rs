@@ -185,7 +185,8 @@ impl Ant {
             let dist_approx = u8::MAX - self.nest_scent;
             self.food_scent = dist_approx
                 .saturating_add(dist_approx)
-                .saturating_add(dist_approx / 4);
+                .saturating_add(dist_approx / 10)
+                .saturating_add(10);
         }
 
         let _ = scent_cell
@@ -217,14 +218,16 @@ impl Ant {
             }
         }
         // find food!
-        else if let Some(food) = cell.take_type(CellType::Food) {
-            self.food = Some(food);
+        else if self.food.is_none() {
+            if let Some(food) = cell.take_type(CellType::Food) {
+                self.food = Some(food);
 
-            // distance to nest is approximately u8::MAX - self.nest_scent
-            // but we need some margin because we won't take the optimal route due to randomness
+                // distance to nest is approximately u8::MAX - self.nest_scent
+                // but we need some margin because we won't take the optimal route due to randomness
 
-            // self.nest_scent = 0;
-            self.dir = invert(self.dir);
+                // self.nest_scent = 0;
+                self.dir = invert(self.dir);
+            }
         }
 
         if self.food.is_some() {
@@ -320,8 +323,8 @@ impl Ant {
             self.hunger = u8::MAX;
         }
 
-        self.update_scents(scents);
         let scent_seeking = self.update_behaviour(map, food, faction);
+        self.update_scents(scents);
 
         let perception = self.perceive(map, scents, scent_seeking.0, scent_seeking.1);
 

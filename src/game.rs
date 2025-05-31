@@ -1,11 +1,11 @@
 use macroquad::color::colors;
-use macroquad::{prelude::*, rand};
+use macroquad::prelude::*;
 
 use crate::ant::{Ant, AntColony};
 use crate::draw::{color, draw_game};
 use crate::map::{Faction, Map};
 // use crate::grid::{DOWN, Grid, LEFT, RIGHT, SQUARES, UP};
-use crate::pos::{self, Pos, dirs};
+use crate::pos::{Pos, dirs};
 
 pub enum Speed {
     SLOW,
@@ -89,7 +89,7 @@ impl Game {
 
         if is_key_down(KeyCode::LeftShift) {
             self.player.food_scent = u8::MAX;
-        } else if self.player.food_scent == u8::MAX - 2 {
+        } else {
             self.player.food_scent = 0;
         }
         if is_key_pressed(KeyCode::Key1) {
