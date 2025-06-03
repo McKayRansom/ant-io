@@ -44,6 +44,9 @@ impl ScentCell {
     }
 }
 
+// pub struct ScentGrid {
+// 
+// }
 pub type ScentGrid = HashMap<Pos, ScentCell>;
 
 #[derive(Debug)]

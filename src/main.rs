@@ -1,12 +1,7 @@
-use game::Game;
 use macroquad::window::next_frame;
 
+use ant_io::game::Game;
 
-mod map;
-mod game;
-mod pos;
-mod draw;
-mod insect;
 
 
 #[macroquad::main("Ant-IO")]
