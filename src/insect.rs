@@ -27,7 +27,7 @@ pub struct Insect {
     pub pos: Pos,
     pub dir: Pos,
     occupy: Rc<RefCell<Faction>>,
-    pub hunger: u8,
+    pub hunger: u16,
 }
 
 impl Insect {
@@ -36,7 +36,7 @@ impl Insect {
             pos,
             dir: dirs::rand(),
             occupy: Rc::new(RefCell::new(faction)),
-            hunger: rand::gen_range(u8::MAX / 2, u8::MAX),
+            hunger: rand::gen_range(u8::MAX as u16 / 2 , u8::MAX as u16),
         }
     }
 

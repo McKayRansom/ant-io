@@ -62,11 +62,11 @@ impl Game {
                 AntColony::new(NEST_POS, &mut map, 1),
                 AntColony::new(NEST_POS_2, &mut map, 2),
             ],
-            pillbugs: (0..10)
+            pillbugs: (0..50)
                 .into_iter()
                 .map(|_| Pillbug::new(map.rand_pos()))
                 .collect(),
-            spiders: (0..10)
+            spiders: (0..30)
                 .into_iter()
                 .map(|_| Spider::new(map.rand_pos()))
                 .collect(),
@@ -135,7 +135,7 @@ impl Game {
 
         let _seeking = self.player.update_behaviour(&mut self.map, &mut colony.food, 1);
         self.player.update_scents(&mut colony.scents);
-        self.player.insect.hunger = u8::MAX;
+        self.player.insect.hunger = u16::MAX;
 
         if self.player.insect.update(
             Some(self.player.insect.pos + self.player.insect.dir),

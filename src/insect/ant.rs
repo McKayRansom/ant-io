@@ -39,7 +39,8 @@ impl ScentCell {
     fn update(&mut self) {
         // self.nest_scent = self.nest_scent.saturating_sub(1);
         self.scents[Scents::Food as usize] = self.scents[Scents::Food as usize].saturating_sub(1);
-        self.scents[Scents::Attack as usize] = self.scents[Scents::Attack as usize].saturating_sub(1);
+        self.scents[Scents::Attack as usize] =
+            self.scents[Scents::Attack as usize].saturating_sub(1);
     }
 }
 
@@ -57,7 +58,7 @@ pub struct AntColony {
 }
 
 const STARTING_FOOD: Food = 32;
-const STARTING_ANTS: usize = 32;
+const STARTING_ANTS: usize = 64;
 
 impl AntColony {
     pub fn new(pos: Pos, map: &mut Map, faction: Faction) -> Self {
@@ -145,6 +146,8 @@ impl Ant {
                 .saturating_add(dist_approx)
                 .saturating_add(dist_approx / 5)
                 .saturating_add(48);
+        } else {
+            self.food_scent = 0;
         }
         let _ = scent_cell
             .drop_scent(Scents::Food, self.food_scent)
@@ -184,15 +187,19 @@ impl Ant {
         // find food!
         else if self.food.is_none() {
             if let Some(food) = cell.take_type(CellType::Food) {
-                if self.insect.hunger < u8::MAX / 2 {
+                if self.insect.hunger < u8::MAX as u16 {
                     // eat it for ourselves
-                    self.insect.hunger = u8::MAX;
+                    self.insect.hunger += u8::MAX as u16;
                 } else {
                     // take it back to the nest I guess
                     self.food = Some(food);
                     self.insect.dir = invert(self.insect.dir);
                 }
             }
+        } else if self.insect.hunger < u8::MAX as u16 {
+            // eat it for ourselves
+            self.insect.hunger += u8::MAX as u16;
+            self.food = None;
         }
 
         self.timeout = self.timeout.saturating_sub(1);
@@ -241,18 +248,18 @@ impl Ant {
             // only attack spiders for now
             if percep.1.faction == FACTION_SPIDER {
                 // worker run away
-                if seeking.1 != CellType::Nest(u8::MAX) {
-                    let dist_approx = u8::MAX - self.nest_scent;
-                    self.attack_scent = dist_approx
-                        .saturating_add(dist_approx)
-                        .saturating_add(dist_approx / 5)
-                        .saturating_add(48);
-                    return Some(self.insect.pos + invert(percep.0 - self.insect.pos));
-                }
-                // soldier attack!
-                else {
-                    return Some(percep.0)
-                }
+                // if seeking.1 != CellType::Nest(u8::MAX) {
+                //     let dist_approx = u8::MAX - self.nest_scent;
+                //     self.attack_scent = dist_approx
+                //         .saturating_add(dist_approx)
+                //         .saturating_add(dist_approx / 5)
+                //         .saturating_add(48);
+                //     return Some(self.insect.pos + invert(percep.0 - self.insect.pos));
+                // }
+                // else {
+                // // soldier attack!
+                    return Some(percep.0);
+                // }
             }
         }
 

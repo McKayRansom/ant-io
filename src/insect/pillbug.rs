@@ -31,9 +31,10 @@ impl Pillbug {
             self.speed = 1;
             false
         };
-        self.reproduce += 1;
-        if self.reproduce == u8::MAX {
+        self.reproduce = self.reproduce.saturating_add(1);
+        if self.reproduce == 128 && self.insect.hunger > u8::MAX as u16 {
             self.reproduce = 0;
+            self.insect.hunger -= u8::MAX as u16;
             new_bugs.push(self.insect.pos);
         }
 
@@ -41,13 +42,13 @@ impl Pillbug {
 
         if will_move {
             // eat the food?
-            if self.insect.hunger < u8::MAX / 2 {
+            if self.insect.hunger < u8::MAX as u16 {
                 if let Some(_food) = map
                     .get_cell_mut(self.insect.pos)
                     .unwrap()
                     .take_type(CellType::Food)
                 {
-                    self.insect.hunger = u8::MAX;
+                    self.insect.hunger += u8::MAX as u16;
                 }
             } else if map.get_cell(self.insect.pos).unwrap().is_type(CellType::Food) {
                 // no point in moving lol, stay on the food!
