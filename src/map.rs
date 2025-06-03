@@ -12,6 +12,10 @@ use crate::pos::{Pos, dirs};
 
 pub type Faction = u8;
 
+pub const FACTION_NONE: u8 = 0;
+
+pub const FACTION_PILLBUG: u8 = u8::MAX - 1;
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum CellType {
     #[default]
@@ -19,6 +23,7 @@ pub enum CellType {
     Food,
     Nest(Faction),
     Rock,
+    Wall,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -55,9 +60,11 @@ impl Cell {
     //     self.occupied.strong_count() > 0
     // }
 
-    // pub fn _occupied_faction(&self) -> Option<Faction> {
-    //     Weak::<RefCell<Faction>>::upgrade(&self.occupied).map(|rc| *rc)
-    // }
+    pub fn occupied_faction(&self) -> Faction {
+        Weak::<RefCell<Faction>>::upgrade(&self.occupied)
+            .map(|rc| *rc.borrow())
+            .unwrap_or(FACTION_NONE)
+    }
 
     pub fn try_occupy(&mut self, faction: Faction) -> Option<Rc<RefCell<Faction>>> {
         if let Some(rc) = self.occupied.upgrade() {
@@ -90,6 +97,17 @@ pub struct Map {
     pub sq_size: f32,
 }
 
+pub struct Sight {
+    pub cell_type: CellType,
+    pub faction: Faction,
+}
+
+impl Sight {
+    pub fn new(cell_type: CellType, faction: Faction) -> Self {
+        Self { cell_type, faction }
+    }
+}
+
 pub enum OccupyError {
     Solid,
     Fight,
@@ -115,12 +133,12 @@ impl Map {
         map
     }
 
+    pub fn rand_pos(&self) -> Pos {
+        Pos::rand(self.size)
+    }
+
     pub fn drop_rand_bunch(&mut self, t: CellType) {
-        let mut pos = (
-            rand::gen_range(0, self.size.x),
-            rand::gen_range(0, self.size.y),
-        )
-            .into();
+        let mut pos = self.rand_pos();
         for _ in 0..rand::gen_range(10, 70) {
             let Some(cell) = self.get_cell_mut(pos) else {
                 continue;
@@ -177,6 +195,12 @@ impl Map {
             return Err(OccupyError::Solid);
         }
         cell.try_occupy(faction).ok_or(OccupyError::Fight)
+    }
+
+    pub fn sight(&self, pos: Pos) -> Sight {
+        self.get_cell(pos)
+            .map(|cell| Sight::new(cell.m_type, cell.occupied_faction()))
+            .unwrap_or(Sight::new(CellType::Wall, FACTION_NONE))
     }
 
     // pub fn occupy(&mut self, pos: Point) -> bool {

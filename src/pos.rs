@@ -1,5 +1,7 @@
 use std::ops::{Add, Sub};
 
+use macroquad::prelude::rand;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Pos {
     pub x: i16,
@@ -76,6 +78,13 @@ pub mod dirs {
 impl Pos {
     pub const fn new(x: i16, y: i16) -> Self {
         Self { x, y }
+    }
+
+    pub fn rand(max: Pos) -> Self {
+        Self {
+            x: rand::gen_range(0, max.x),
+            y: rand::gen_range(0, max.y),
+        }
     }
 }
 

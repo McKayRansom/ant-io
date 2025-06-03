@@ -1,13 +1,12 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use macroquad::prelude::rand;
 
-use crate::map::{CellType, Faction, Map, OccupyError};
+use crate::insect::{Insect, Perception};
+use crate::map::{CellType, Faction, Map};
 
-use crate::pos::dirs::{invert, rotate_left, rotate_right};
-use crate::pos::{Pos, dirs};
+use crate::pos::Pos;
+use crate::pos::dirs::invert;
 
 // const
 
@@ -72,24 +71,12 @@ impl AntColony {
     }
 
     pub fn update(&mut self, grid: &mut Map) {
-        // for row in self.occupied.iter_mut() {
         for cell in self.scents.values_mut() {
             cell.update();
         }
-        // }
 
-        // let mut all_snakes_dead = true;
         self.ants
             .retain_mut(|ant| ant.update(grid, &mut self.scents, &mut self.food, self.faction));
-        //     if i == 0 {
-        //         // player died
-        //         self.game_over = true;
-        //         self.game_won = false;
-        //     }
-        // } else if i != 0 {
-        //     all_snakes_dead = false;
-        // }
-        // }
 
         if self.food > self.ants.len() {
             // create new ants!
@@ -101,85 +88,37 @@ impl AntColony {
 
 #[derive(Debug, Clone)]
 pub struct Ant {
-    pub pos: Pos,
+    pub insect: Insect,
     pub food: Option<()>,
     nest_scent: u8,
     pub food_scent: u8,
-    pub dir: Pos,
-    occupy: Rc<RefCell<Faction>>,
-    // more optimal ways to do this (i.e. for the whole colony)
-    // also would be better if we had to go back to the colony to eat...
-    pub hunger: u8,
-    // pub target_scent: ()
 }
 
 impl Ant {
     pub fn new(pos: Pos, faction: Faction) -> Self {
         Self {
-            pos,
-            dir: dirs::rand(),
+            insect: Insect::new(pos, faction),
             food: None,
             food_scent: 0,
             nest_scent: u8::MAX,
-            occupy: Rc::new(RefCell::new(faction)),
-            hunger: rand::gen_range(u8::MAX / 2, u8::MAX),
         }
     }
 
-    fn sense(
-        &self,
-        pos: Pos,
-        grid: &Map,
-        scents: &ScentGrid,
-        scent: Scents,
-        flag: CellType,
-    ) -> (Pos, u8) {
-        (
-            pos,
-            if grid.get_cell(pos).is_some_and(|cell| cell.is_type(flag)) {
-                u8::MAX
-            } else {
-                scents
-                    .get(&pos)
-                    .map(|cell| cell.get_scent(scent))
-                    .unwrap_or(0)
-                // .max(u8::MAX / 40)
-                // we always want some chance to pick a direction...
-                // but it it's too high we won't ofter go the way we want!
-            },
-        )
+    // smell pheremones only
+    fn smell(scents: &ScentGrid, pos: Pos, scent: Scents) -> u8 {
+        scents
+            .get(&pos)
+            .map(|cell| cell.get_scent(scent))
+            .unwrap_or(0)
     }
 
-    fn perceive(
-        &self,
-        grid: &Map,
-        scents: &ScentGrid,
-        scent: Scents,
-        flag: CellType,
-    ) -> [(Pos, u8); 5] {
-        [
-            self.sense(
-                self.pos + rotate_left(rotate_left(self.dir)),
-                grid,
-                scents,
-                scent,
-                flag,
-            ),
-            self.sense(self.pos + rotate_left(self.dir), grid, scents, scent, flag),
-            self.sense(self.pos + self.dir, grid, scents, scent, flag),
-            self.sense(self.pos + rotate_right(self.dir), grid, scents, scent, flag),
-            self.sense(
-                self.pos + rotate_right(rotate_right(self.dir)),
-                grid,
-                scents,
-                scent,
-                flag,
-            ),
-        ]
-    }
+    // fn perceive(&self, map: &Map, scents: &ScentGrid, seeking: (Scents, CellType)) -> Perception {
+        // self.insect
+            // .perception(map, seeking.1, |pos| Self::smell(scents, pos, seeking.0))
+    // }
 
     pub fn update_scents(&mut self, scents: &mut ScentGrid) {
-        let scent_cell = scents.entry(self.pos).or_default();
+        let scent_cell = scents.entry(self.insect.pos).or_default();
 
         if self.food.is_some() {
             let dist_approx = u8::MAX - self.nest_scent;
@@ -206,7 +145,9 @@ impl Ant {
         faction: Faction,
     ) -> (Scents, CellType) {
         // take food
-        let cell = map.get_cell_mut(self.pos).expect("Ant in invalid pos");
+        let cell = map
+            .get_cell_mut(self.insect.pos)
+            .expect("Ant in invalid pos");
 
         if cell.is_type(CellType::Nest(faction)) {
             if self.food.is_some() {
@@ -214,7 +155,7 @@ impl Ant {
                 self.food = None;
                 self.nest_scent = u8::MAX - 1;
                 self.food_scent = 0;
-                self.dir = invert(self.dir);
+                self.insect.dir = invert(self.insect.dir);
             }
         }
         // find food!
@@ -226,79 +167,59 @@ impl Ant {
                 // but we need some margin because we won't take the optimal route due to randomness
 
                 // self.nest_scent = 0;
-                self.dir = invert(self.dir);
+                self.insect.dir = invert(self.insect.dir);
             }
         }
 
         if self.food.is_some() {
             (Scents::Nest, CellType::Nest(faction))
-            // find nest!
-            //  else {
-            // self.follow_scent(map, scents, Scents::Nest, CellType::Nest(faction))
-            // }
         } else {
             (Scents::Food, CellType::Food)
-            // else {
-            //     self.follow_scent(map, scents, Scents::Food, CellType::Food)
-            // }
         }
     }
 
-    pub fn try_move(&mut self, next_pos: Pos, map: &mut Map, faction: Faction) -> bool {
-        match map.occupy(next_pos, faction) {
-            Ok(occupy) => {
-                self.dir = next_pos - self.pos;
-                self.pos = next_pos;
-                self.occupy = occupy;
-            }
-            Err(OccupyError::Solid) => self.dir = invert(self.dir),
-            Err(OccupyError::Fight) => {
-                // TODO: REAL FIGHTS
-                // we die now
-                return false;
+    pub fn update_movement(&self, perception: &mut Perception, scents: &ScentGrid, seeking: (Scents, CellType)) -> Option<Pos> {
+        for percep in perception.iter() {
+            // TODO: Run from enemies, how determine this?
+            // if percep.1.faction != 
+            if percep.1.cell_type == seeking.1 {
+                // found it, no reason not to go there
+                return Some(percep.0);
             }
         }
-        true
-    }
-
-    pub fn perception_weighted_random(&self, perception: [(Pos, u8); 5]) -> Option<Pos> {
-        let mut max: u8 = 0;
-        let mut max_pos: Pos = self.pos;
-        let _total: u16 = perception.iter().fold(0, |sum, val| {
-            if max < val.1 || (max == val.1 && rand::rand() % 2 == 0) {
-                max = val.1;
-                max_pos = val.0;
-            }
-            sum + val.1 as u16
-        });
 
         // chance to just go randomly
         let val = rand::rand();
-        if val < u32::MAX / 4 || max == 0 {
-            // 50/50 chance to turn
-            let val = rand::rand();
-            if val < u32::MAX / 2 {
-                // 50/50 chance of dir
-                if val < u32::MAX / 4 {
-                    Some(self.pos + rotate_left(self.dir))
-                } else {
-                    Some(self.pos + rotate_right(self.dir))
-                }
-            } else {
-                Some(self.pos + self.dir)
-            }
-        } else {
-            Some(max_pos)
+        if val < u32::MAX / 4 {
+            return Some(self.insect.move_random());
         }
 
+        // didn't see anything interesting, time to go by scents
+        // I wish we could do a weighted thing, but it just doesn't seem to work right...
+        let mut total: u16 = 0;
+        for percep in perception.iter_mut() {
+            // re-using cus lazy? or should we only smell directly ahead maybe?
+            let scent = Self::smell(scents, percep.0, seeking.0);
+            percep.1.faction = scent;
+            total += scent as u16;
+        }
+
+        // no scents, just go randomly
+        if total == 0 {
+            return Some(self.insect.move_random());
+        }
+
+        // pick a dir based on random chance, but weighted towards the highest scent dir
         // let mut pick = rand::gen_range(0, total);
-        // for val in perception {
-        //     if pick <= val.1 as u16 {
-        //         return Some(val.0);
-        //     }
-        //     pick -= val.1 as u16;
-        // }
-        // None
+        let mut pos: Pos = self.insect.pos;
+        let mut max: u8 = 0;
+        for val in perception.iter() {
+            if max <= val.1.faction  {
+                pos = val.0;
+                max = val.1.faction;
+            }
+        }
+        return Some(pos)
     }
 
     pub fn update(
@@ -308,30 +229,18 @@ impl Ant {
         food: &mut Food,
         faction: Faction,
     ) -> bool {
-        // check if we were killed!
-        let mut ref_cell_faction = self.occupy.borrow_mut();
-        if *ref_cell_faction != faction {
-            *ref_cell_faction = faction;
-            return false;
-        }
-        drop(ref_cell_faction);
-
         // TEMP
-        self.hunger = self.hunger.saturating_sub(1);
-        if self.hunger == 0 && *food > 0 {
+        if self.insect.hunger < u8::MAX / 8 && *food > 0 {
             *food = *food - 1;
-            self.hunger = u8::MAX;
+            self.insect.hunger = u8::MAX;
         }
 
-        let scent_seeking = self.update_behaviour(map, food, faction);
+        let seeking = self.update_behaviour(map, food, faction);
         self.update_scents(scents);
 
-        let perception = self.perceive(map, scents, scent_seeking.0, scent_seeking.1);
-
-        // pick a dir based on random chance
-        let next_pos = self.perception_weighted_random(perception);
-
-        self.try_move(next_pos.unwrap(), map, faction)
+        let mut perception = self.insect.perception(map);
+        let next_pos = self.update_movement(&mut perception, scents, seeking);
+        self.insect.update(next_pos, map, faction)
     }
 
     pub fn has_food(&self) -> bool {

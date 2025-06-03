@@ -4,6 +4,7 @@ use macroquad::prelude::*;
 use crate::ant::{Ant, AntColony};
 use crate::draw::{color, draw_game};
 use crate::map::{Faction, Map};
+use crate::pillbug::Pillbug;
 // use crate::grid::{DOWN, Grid, LEFT, RIGHT, SQUARES, UP};
 use crate::pos::{Pos, dirs};
 
@@ -36,13 +37,13 @@ pub struct Game {
 
     speed: Speed,
     last_update: f64,
-    navigation_lock: bool,
     game_over: bool,
     pub game_won: bool,
     pub ant_colonies: Vec<AntColony>,
     pub player: Ant,
     pub show_scents: Faction,
     pub paused: bool,
+    pub pillbugs: Vec<Pillbug>,
 }
 
 const NEST_POS: Pos = Pos::new(40 * 2, 60 * 2);
@@ -59,12 +60,13 @@ impl Game {
                 AntColony::new(NEST_POS, &mut map, 1),
                 AntColony::new(NEST_POS_2, &mut map, 2),
             ],
+            pillbugs: (0..10)
+                .into_iter()
+                .map(|_| Pillbug::new(map.rand_pos()))
+                .collect(),
             map,
-            // let mut fruit: Point = (rand::gen_range(0, SQUARES), rand::gen_range(0, SQUARES));
-            // let mut score = 0;
             speed: Speed::SLOW,
             last_update: get_time(),
-            navigation_lock: false,
             game_over: false,
             game_won: true,
             player: Ant::new(NEST_POS, 1),
@@ -85,7 +87,7 @@ impl Game {
         } else if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
             input_dir.y = 1;
         }
-        self.player.dir = input_dir;
+        self.player.insect.dir = input_dir;
 
         if is_key_down(KeyCode::LeftShift) {
             self.player.food_scent = u8::MAX;
@@ -113,13 +115,12 @@ impl Game {
         if is_key_pressed(KeyCode::F) {
             self.speed = self.speed.invert();
         }
-
     }
     pub fn update_player(&mut self) {
         let colony = &mut self.ant_colonies[0];
         self.player.update_scents(&mut colony.scents);
-        if self.player.try_move(
-            self.player.pos + self.player.dir,
+        if self.player.insect.update(
+            Some(self.player.insect.pos + self.player.insect.dir),
             &mut self.map,
             self.ant_colonies[0].faction,
         ) == false
@@ -139,13 +140,13 @@ impl Game {
                     colony.update(&mut self.map);
                 }
 
+                self.pillbugs.retain_mut(|bug| bug.update(&mut self.map));
+
                 self.map.update();
                 // if all_snakes_dead {
                 //     self.game_won = true;
                 //     self.game_over = true;
                 // }
-                self.navigation_lock = false;
-
 
                 self.update_player();
             }

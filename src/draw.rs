@@ -22,6 +22,10 @@ pub fn draw_game(game: &Game) {
         draw_colony(colony, &game.map);
     }
 
+    for bug in &game.pillbugs {
+        draw_cell(&game.map, bug.insect.pos, colors::PINK);
+    }
+
     draw_player(&game.player, &game.map);
 }
 
@@ -40,10 +44,11 @@ pub fn draw_map(map: &Map) {
             let point: Pos = Pos::new(x as i16, y as i16);
             let cell = &row[x];
             match cell.m_type {
-                CellType::Empty => {},
+                CellType::Empty => {}
                 CellType::Food => draw_cell(map, point, FOOD_COLOR),
                 CellType::Nest(_) => draw_cell(map, point, colors::WHITE),
                 CellType::Rock => draw_cell(map, point, colors::GRAY),
+                CellType::Wall => {}
             }
         }
     }
@@ -104,9 +109,9 @@ pub fn color(faction: Faction) -> Color {
 
 pub fn draw_ant(ant: &Ant, map: &Map, faction: Faction) {
     let color = color(faction);
-    draw_cell(map, ant.pos, color);
+    draw_cell(map, ant.insect.pos, color);
     if ant.has_food() {
-        draw_cell_small(map, ant.pos, FOOD_COLOR);
+        draw_cell_small(map, ant.insect.pos, FOOD_COLOR);
     }
 
     // for pos in &self.body {
@@ -115,8 +120,8 @@ pub fn draw_ant(ant: &Ant, map: &Map, faction: Faction) {
 }
 
 pub fn draw_player(ant: &Ant, map: &Map) {
-    draw_cell(map, ant.pos, colors::YELLOW);
+    draw_cell(map, ant.insect.pos, colors::YELLOW);
     if ant.has_food() {
-        draw_cell_small(map, ant.pos, FOOD_COLOR);
+        draw_cell_small(map, ant.insect.pos, FOOD_COLOR);
     }
 }
