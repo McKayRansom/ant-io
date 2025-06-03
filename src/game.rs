@@ -1,7 +1,7 @@
 use macroquad::color::colors;
 use macroquad::prelude::*;
 
-use crate::draw::{color, draw_game};
+use crate::draw::{color, draw_game, PILLBUG_COLOR, SPIDER_COLOR};
 use crate::insect::ant::{Ant, AntColony};
 use crate::insect::pillbug::Pillbug;
 use crate::insect::spider::Spider;
@@ -96,9 +96,9 @@ impl Game {
         self.player.insect.dir = input_dir;
 
         if is_key_down(KeyCode::LeftShift) {
-            self.player.food_scent = u8::MAX;
+            self.player.attack_scent = u8::MAX;
         } else {
-            self.player.food_scent = 0;
+            self.player.attack_scent = 0;
         }
         if is_key_pressed(KeyCode::Key1) {
             if self.show_scents == 1 {
@@ -115,6 +115,13 @@ impl Game {
             }
         }
 
+        if is_key_pressed(KeyCode::Minus) {
+            self.map.camera.change_zoom(-0.1);
+        }
+        if is_key_pressed(KeyCode::Equal) {
+            self.map.camera.change_zoom(0.1);
+        }
+
         if is_key_pressed(KeyCode::Space) {
             self.paused = !self.paused;
         }
@@ -128,6 +135,7 @@ impl Game {
 
         let _seeking = self.player.update_behaviour(&mut self.map, &mut colony.food, 1);
         self.player.update_scents(&mut colony.scents);
+        self.player.insect.hunger = u8::MAX;
 
         if self.player.insect.update(
             Some(self.player.insect.pos + self.player.insect.dir),
@@ -146,6 +154,15 @@ impl Game {
             if !self.paused && get_time() - self.last_update > self.speed.val() {
                 self.last_update = get_time();
 
+
+                let mut new_bugs: Vec<Pos> = Vec::new();
+                self.spiders
+                    .retain_mut(|spider| spider.update(&mut self.map, &mut new_bugs));
+                // this is stupid but IDK
+                for pos in new_bugs.iter() {
+                    self.spiders.push(Spider::new(*pos));
+                }
+
                 for colony in self.ant_colonies.iter_mut() {
                     colony.update(&mut self.map);
                 }
@@ -158,13 +175,6 @@ impl Game {
                     self.pillbugs.push(Pillbug::new(*pos));
                 }
 
-                let mut new_bugs: Vec<Pos> = Vec::new();
-                self.spiders
-                    .retain_mut(|spider| spider.update(&mut self.map, &mut new_bugs));
-                // this is stupid but IDK
-                for pos in new_bugs.iter() {
-                    self.spiders.push(Spider::new(*pos));
-                }
 
                 self.map.update();
                 // if all_snakes_dead {
@@ -199,7 +209,7 @@ impl Game {
             10.,
             40.,
             24.,
-            color(self.ant_colonies[0].faction),
+            color(self.ant_colonies[1].faction),
         );
 
         draw_text(
@@ -207,7 +217,7 @@ impl Game {
             10.,
             60.,
             24.,
-            color(self.ant_colonies[1].faction),
+            PILLBUG_COLOR,
         );
 
         draw_text(
@@ -215,8 +225,16 @@ impl Game {
             10.,
             80.,
             24.,
-            color(self.ant_colonies[1].faction),
+            SPIDER_COLOR,
         );
+
+        // draw_text(
+        //     format!("P Hunger: {}", self.player.insect.hunger).as_str(),
+        //     10.,
+        //     100.,
+        //     24.,
+        //     colors::YELLOW,
+        // );
 
         // if self.game_over {
         //     // clear_background(BLACK);

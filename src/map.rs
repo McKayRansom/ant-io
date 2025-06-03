@@ -119,6 +119,7 @@ impl Map {
             size: Pos::new(SQUARES, SQUARES),
             camera: Camera::new(),
         };
+        map.camera.zoom = 0.5;
         for _ in 0..10 {
             map.drop_rand_bunch(CellType::Rock);
         }
@@ -168,7 +169,7 @@ impl Map {
     }
 
     pub fn update_size(&mut self, player_pos: Pos) {
-        self.camera.zoom = 0.5;
+        // self.camera.zoom = 0.5;
         self.camera.keep_centered(self.screen_pos(player_pos));
     }
 

@@ -24,7 +24,7 @@ impl Pillbug {
     }
 
     pub fn update(&mut self, map: &mut Map, new_bugs: &mut Vec<Pos>) -> bool {
-        let will_move = if self.speed == 1 {
+        let mut will_move = if self.speed == 1 {
             self.speed = 0;
             true
         } else {
@@ -37,6 +37,8 @@ impl Pillbug {
             new_bugs.push(self.insect.pos);
         }
 
+        self.insect.hunger = self.insect.hunger.saturating_sub(1);
+
         if will_move {
             // eat the food?
             if self.insect.hunger < u8::MAX / 2 {
@@ -47,6 +49,9 @@ impl Pillbug {
                 {
                     self.insect.hunger = u8::MAX;
                 }
+            } else if map.get_cell(self.insect.pos).unwrap().is_type(CellType::Food) {
+                // no point in moving lol, stay on the food!
+                will_move = false;
             }
         }
 
@@ -62,10 +67,10 @@ impl Pillbug {
                 self.curled = true;
                 best_pos = None;
                 // mark as rock or something so we can't be eaten
-                let cell = map.get_cell_mut(self.insect.pos).unwrap();
-                if cell.m_type == CellType::Empty {
-                    cell.m_type = CellType::Rock;
-                }
+                // let cell = map.get_cell_mut(self.insect.pos).unwrap();
+                // if cell.m_type == CellType::Empty {
+                //     cell.m_type = CellType::Rock;
+                // }
 
                 break;
             }
