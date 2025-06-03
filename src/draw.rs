@@ -1,10 +1,9 @@
 use macroquad::{
-    color::{Color, colors},
-    shapes::draw_rectangle,
+    color::{colors, Color}, shapes::draw_rectangle
 };
 
 use crate::{
-    ant::{Ant, AntColony, Scents},
+    insect::ant::{Ant, AntColony, Scents},
     game::Game,
     map::{CellType, Faction, Map},
     pos::Pos,
@@ -12,7 +11,11 @@ use crate::{
 
 const FOOD_COLOR: Color = colors::GREEN;
 
+pub const PILLBUG_COLOR: Color = colors::PINK;
+pub const SPIDER_COLOR: Color = colors::ORANGE;
+
 pub fn draw_game(game: &Game) {
+
     draw_map(&game.map);
 
     if game.show_scents != 0 {
@@ -23,19 +26,24 @@ pub fn draw_game(game: &Game) {
     }
 
     for bug in &game.pillbugs {
-        draw_cell(&game.map, bug.insect.pos, colors::PINK);
+        draw_cell(&game.map, bug.insect.pos, PILLBUG_COLOR);
+    }
+
+    for spider in &game.spiders {
+        draw_cell(&game.map, spider.insect.pos, SPIDER_COLOR);
     }
 
     draw_player(&game.player, &game.map);
 }
 
 pub fn draw_map(map: &Map) {
+    let pos = map.screen_pos((0, 0).into());
     draw_rectangle(
-        map.offset_x,
-        map.offset_y,
-        map.game_size - 20.,
-        map.game_size - 20.,
-        colors::BLACK,
+        pos.x,
+        pos.y,
+        map.size.x as f32 * Map::TILE_SIZE_DEFAULT * map.camera.zoom,
+        map.size.y as f32 * Map::TILE_SIZE_DEFAULT * map.camera.zoom,
+        colors::DARKBROWN,
     );
 
     for y in 0..map.occupied.len() {
@@ -72,28 +80,30 @@ pub fn draw_scents(colony: &AntColony, map: &Map) {
 }
 
 pub fn draw_colony(colony: &AntColony, map: &Map) {
-    for ants in &colony.ants {
+    for ants in &colony.workers {
         draw_ant(ants, &map, colony.faction);
     }
 }
 
 pub fn draw_cell(map: &Map, pos: Pos, color: Color) {
+    let rect = map.screen_rect(pos);
     draw_rectangle(
-        map.offset_x + pos.x as f32 * map.sq_size,
-        map.offset_y + pos.y as f32 * map.sq_size,
-        map.sq_size,
-        map.sq_size,
+        rect.x,
+        rect.y,
+        rect.w,
+        rect.h,
         color,
     );
 }
 
 pub fn draw_cell_small(map: &Map, pos: Pos, color: Color) {
-    let margin = map.sq_size / 4.;
+    let rect = map.screen_rect(pos);
+    let margin = rect.w / 4.;
     draw_rectangle(
-        map.offset_x + pos.x as f32 * map.sq_size + margin,
-        map.offset_y + pos.y as f32 * map.sq_size + margin,
-        map.sq_size - margin * 2.,
-        map.sq_size - margin * 2.,
+        rect.x + margin,
+        rect.y + margin,
+        rect.w - margin / 2.,
+        rect.h - margin / 2.,
         color,
     );
 }

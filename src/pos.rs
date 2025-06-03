@@ -70,7 +70,8 @@ pub mod dirs {
             DOWN => UP,
             DOWN_LEFT => UP_RIGHT,
             LEFT => RIGHT,
-            _ => panic!("Invalid dir: {:?}", pos),
+            _ => UP,
+            // _ => panic!("Invalid dir: {:?}", pos),
         }
     }
 }

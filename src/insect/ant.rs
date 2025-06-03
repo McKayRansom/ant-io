@@ -46,14 +46,15 @@ pub type ScentGrid = HashMap<Pos, ScentCell>;
 pub struct AntColony {
     pub faction: Faction,
     pub food: Food,
-    pub ants: Vec<Ant>,
+    pub workers: Vec<Ant>,
+    // pub soldiers: Vec<Ant>,
     pub nest_pos: Pos,
     // the plan is to have the map much bigger, so most of it will be scent-less...
     pub scents: ScentGrid,
 }
 
 const STARTING_FOOD: Food = 32;
-const ANTS_NUMBER: usize = 32;
+const STARTING_ANTS: usize = 32;
 
 impl AntColony {
     pub fn new(pos: Pos, map: &mut Map, faction: Faction) -> Self {
@@ -64,7 +65,7 @@ impl AntColony {
         Self {
             faction,
             food: STARTING_FOOD,
-            ants: vec![Ant::new(pos, faction); ANTS_NUMBER],
+            workers: vec![Ant::new(pos, faction); STARTING_ANTS],
             scents: HashMap::new(),
             nest_pos: pos,
         }
@@ -75,12 +76,12 @@ impl AntColony {
             cell.update();
         }
 
-        self.ants
+        self.workers
             .retain_mut(|ant| ant.update(grid, &mut self.scents, &mut self.food, self.faction));
 
-        if self.food > self.ants.len() {
+        if self.food > self.workers.len() {
             // create new ants!
-            self.ants.push(Ant::new(self.nest_pos, self.faction));
+            self.workers.push(Ant::new(self.nest_pos, self.faction));
             self.food -= 1;
         }
     }
@@ -113,8 +114,8 @@ impl Ant {
     }
 
     // fn perceive(&self, map: &Map, scents: &ScentGrid, seeking: (Scents, CellType)) -> Perception {
-        // self.insect
-            // .perception(map, seeking.1, |pos| Self::smell(scents, pos, seeking.0))
+    // self.insect
+    // .perception(map, seeking.1, |pos| Self::smell(scents, pos, seeking.0))
     // }
 
     pub fn update_scents(&mut self, scents: &mut ScentGrid) {
@@ -161,13 +162,14 @@ impl Ant {
         // find food!
         else if self.food.is_none() {
             if let Some(food) = cell.take_type(CellType::Food) {
-                self.food = Some(food);
-
-                // distance to nest is approximately u8::MAX - self.nest_scent
-                // but we need some margin because we won't take the optimal route due to randomness
-
-                // self.nest_scent = 0;
-                self.insect.dir = invert(self.insect.dir);
+                if self.insect.hunger < u8::MAX / 4 {
+                    // eat it for ourselves
+                    self.insect.hunger = u8::MAX;
+                } else {
+                    // take it back to the nest I guess
+                    self.food = Some(food);
+                    self.insect.dir = invert(self.insect.dir);
+                }
             }
         }
 
@@ -178,10 +180,15 @@ impl Ant {
         }
     }
 
-    pub fn update_movement(&self, perception: &mut Perception, scents: &ScentGrid, seeking: (Scents, CellType)) -> Option<Pos> {
+    pub fn update_movement(
+        &self,
+        perception: &mut Perception,
+        scents: &ScentGrid,
+        seeking: (Scents, CellType),
+    ) -> Option<Pos> {
         for percep in perception.iter() {
             // TODO: Run from enemies, how determine this?
-            // if percep.1.faction != 
+            // if percep.1.faction !=
             if percep.1.cell_type == seeking.1 {
                 // found it, no reason not to go there
                 return Some(percep.0);
@@ -214,12 +221,12 @@ impl Ant {
         let mut pos: Pos = self.insect.pos;
         let mut max: u8 = 0;
         for val in perception.iter() {
-            if max <= val.1.faction  {
+            if max <= val.1.faction {
                 pos = val.0;
                 max = val.1.faction;
             }
         }
-        return Some(pos)
+        return Some(pos);
     }
 
     pub fn update(

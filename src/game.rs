@@ -1,10 +1,11 @@
 use macroquad::color::colors;
 use macroquad::prelude::*;
 
-use crate::ant::{Ant, AntColony};
 use crate::draw::{color, draw_game};
+use crate::insect::ant::{Ant, AntColony};
+use crate::insect::pillbug::Pillbug;
+use crate::insect::spider::Spider;
 use crate::map::{Faction, Map};
-use crate::pillbug::Pillbug;
 // use crate::grid::{DOWN, Grid, LEFT, RIGHT, SQUARES, UP};
 use crate::pos::{Pos, dirs};
 
@@ -44,6 +45,7 @@ pub struct Game {
     pub show_scents: Faction,
     pub paused: bool,
     pub pillbugs: Vec<Pillbug>,
+    pub spiders: Vec<Spider>,
 }
 
 const NEST_POS: Pos = Pos::new(40 * 2, 60 * 2);
@@ -63,6 +65,10 @@ impl Game {
             pillbugs: (0..10)
                 .into_iter()
                 .map(|_| Pillbug::new(map.rand_pos()))
+                .collect(),
+            spiders: (0..10)
+                .into_iter()
+                .map(|_| Spider::new(map.rand_pos()))
                 .collect(),
             map,
             speed: Speed::SLOW,
@@ -116,9 +122,13 @@ impl Game {
             self.speed = self.speed.invert();
         }
     }
+
     pub fn update_player(&mut self) {
         let colony = &mut self.ant_colonies[0];
+
+        let _seeking = self.player.update_behaviour(&mut self.map, &mut colony.food, 1);
         self.player.update_scents(&mut colony.scents);
+
         if self.player.insect.update(
             Some(self.player.insect.pos + self.player.insect.dir),
             &mut self.map,
@@ -140,7 +150,21 @@ impl Game {
                     colony.update(&mut self.map);
                 }
 
-                self.pillbugs.retain_mut(|bug| bug.update(&mut self.map));
+                let mut new_bugs: Vec<Pos> = Vec::new();
+                self.pillbugs
+                    .retain_mut(|bug| bug.update(&mut self.map, &mut new_bugs));
+                // this is stupid but IDK
+                for pos in new_bugs.iter() {
+                    self.pillbugs.push(Pillbug::new(*pos));
+                }
+
+                let mut new_bugs: Vec<Pos> = Vec::new();
+                self.spiders
+                    .retain_mut(|spider| spider.update(&mut self.map, &mut new_bugs));
+                // this is stupid but IDK
+                for pos in new_bugs.iter() {
+                    self.spiders.push(Spider::new(*pos));
+                }
 
                 self.map.update();
                 // if all_snakes_dead {
@@ -159,11 +183,11 @@ impl Game {
 
         clear_background(colors::BLACK);
 
-        self.map.update_size();
+        self.map.update_size(self.player.insect.pos);
         draw_game(&self);
 
         draw_text(
-            format!("Pop: {}", self.ant_colonies[0].ants.len()).as_str(),
+            format!("Colony 0: Pop: {} Food: {}", self.ant_colonies[0].workers.len(), self.ant_colonies[0].food).as_str(),
             10.,
             20.,
             24.,
@@ -171,7 +195,7 @@ impl Game {
         );
 
         draw_text(
-            format!("Food: {}", self.ant_colonies[0].food).as_str(),
+            format!("Colony 1: Pop: {} Food: {}", self.ant_colonies[1].workers.len(), self.ant_colonies[1].food).as_str(),
             10.,
             40.,
             24.,
@@ -179,7 +203,7 @@ impl Game {
         );
 
         draw_text(
-            format!("Pop: {}", self.ant_colonies[1].ants.len()).as_str(),
+            format!("Pillbugs: {}", self.pillbugs.len()).as_str(),
             10.,
             60.,
             24.,
@@ -187,7 +211,7 @@ impl Game {
         );
 
         draw_text(
-            format!("Food: {}", self.ant_colonies[1].food).as_str(),
+            format!("Spiders: {}", self.spiders.len()).as_str(),
             10.,
             80.,
             24.,

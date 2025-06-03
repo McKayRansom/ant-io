@@ -3,12 +3,10 @@ use macroquad::window::next_frame;
 
 
 mod map;
-mod ant;
 mod game;
 mod pos;
 mod draw;
 mod insect;
-mod pillbug;
 
 
 #[macroquad::main("Ant-IO")]

@@ -4,9 +4,10 @@ use std::{
 };
 
 use macroquad::{
+    math::{Rect, Vec2},
     prelude::rand,
-    window::{screen_height, screen_width},
 };
+use quad_lib::camera::Camera;
 
 use crate::pos::{Pos, dirs};
 
@@ -15,6 +16,7 @@ pub type Faction = u8;
 pub const FACTION_NONE: u8 = 0;
 
 pub const FACTION_PILLBUG: u8 = u8::MAX - 1;
+pub const FACTION_SPIDER: u8 = u8::MAX - 2;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum CellType {
@@ -91,10 +93,7 @@ pub struct Map {
     pub occupied: Vec<Vec<Cell>>,
     pub size: Pos,
 
-    pub game_size: f32,
-    pub offset_x: f32,
-    pub offset_y: f32,
-    pub sq_size: f32,
+    pub camera: Camera,
 }
 
 pub struct Sight {
@@ -118,12 +117,8 @@ impl Map {
         let mut map: Map = Self {
             occupied: vec![vec![Cell::default(); SQUARES as usize]; SQUARES as usize],
             size: Pos::new(SQUARES, SQUARES),
-            game_size: 0.,
-            offset_x: 0.,
-            offset_y: 0.,
-            sq_size: 0.,
+            camera: Camera::new(),
         };
-        map.update_size();
         for _ in 0..10 {
             map.drop_rand_bunch(CellType::Rock);
         }
@@ -152,11 +147,29 @@ impl Map {
         }
     }
 
-    pub fn update_size(&mut self) {
-        self.game_size = screen_width().min(screen_height());
-        self.offset_x = (screen_width() - self.game_size) / 2. + 10.;
-        self.offset_y = (screen_height() - self.game_size) / 2. + 10.;
-        self.sq_size = (screen_height() - self.offset_y * 2.) / SQUARES as f32;
+    pub const TILE_SIZE_DEFAULT: f32 = 16.;
+
+    pub fn screen_pos(&self, pos: Pos) -> Vec2 {
+        let world_pos: Vec2 = Vec2 {
+            x: pos.x as f32 * Self::TILE_SIZE_DEFAULT,
+            y: pos.y as f32 * Self::TILE_SIZE_DEFAULT,
+        };
+        self.camera.to_screen(world_pos)
+    }
+
+    pub fn screen_rect(&self, pos: Pos) -> Rect {
+        let pos = self.screen_pos(pos);
+        Rect {
+            x: pos.x,
+            y: pos.y,
+            w: Self::TILE_SIZE_DEFAULT * self.camera.zoom,
+            h: Self::TILE_SIZE_DEFAULT * self.camera.zoom,
+        }
+    }
+
+    pub fn update_size(&mut self, player_pos: Pos) {
+        self.camera.zoom = 0.5;
+        self.camera.keep_centered(self.screen_pos(player_pos));
     }
 
     pub fn update(&mut self) {

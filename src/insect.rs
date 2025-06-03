@@ -10,6 +10,10 @@ use crate::{
     },
 };
 
+pub mod ant;
+pub mod pillbug;
+pub mod spider;
+
 // #[derive(Debug, Clone, Copy)]
 // pub struct Perception {
 // raw: [(Pos, u8); 5],
@@ -66,13 +70,6 @@ impl Insect {
     }
 
     pub fn update(&mut self, next_pos: Option<Pos>, map: &mut Map, faction: Faction) -> bool {
-        // check if we die of hunger
-        self.hunger = self.hunger.saturating_sub(1);
-        if self.hunger == 0 {
-            // we die
-            return false;
-        }
-
         // check if we were killed!
         let mut ref_cell_faction = self.occupy.borrow_mut();
         if *ref_cell_faction != faction {
@@ -82,6 +79,13 @@ impl Insect {
         drop(ref_cell_faction);
 
         if let Some(next_pos) = next_pos {
+            // FOR NOW: Only expend hunger when mooving
+            // check if we die of hunger
+            self.hunger = self.hunger.saturating_sub(1);
+            if self.hunger == 0 {
+                // we die
+                return false;
+            }
             match map.occupy(next_pos, faction) {
                 Ok(occupy) => {
                     self.dir = next_pos - self.pos;
