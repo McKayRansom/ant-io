@@ -18,6 +18,12 @@ pub const FACTION_NONE: u8 = 0;
 pub const FACTION_PILLBUG: u8 = u8::MAX - 1;
 pub const FACTION_SPIDER: u8 = u8::MAX - 2;
 
+pub const MAP_SIZE: i16 = 256;
+
+pub const FOOD_DROP_ODDS: u32 = 10;
+pub const FOOD_DROP_MIN: u32 = 20;
+pub const FOOD_DROP_MAX: u32 = 70;
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum CellType {
     #[default]
@@ -87,7 +93,6 @@ impl Cell {
     }
 }
 
-pub const SQUARES: i16 = 128;
 
 pub struct Map {
     pub occupied: Vec<Vec<Cell>>,
@@ -115,8 +120,8 @@ pub enum OccupyError {
 impl Map {
     pub fn new() -> Self {
         let mut map: Map = Self {
-            occupied: vec![vec![Cell::default(); SQUARES as usize]; SQUARES as usize],
-            size: Pos::new(SQUARES, SQUARES),
+            occupied: vec![vec![Cell::default(); MAP_SIZE as usize]; MAP_SIZE as usize],
+            size: Pos::new(MAP_SIZE, MAP_SIZE),
             camera: Camera::new(),
         };
         map.camera.zoom = 0.5;
@@ -135,7 +140,7 @@ impl Map {
 
     pub fn drop_rand_bunch(&mut self, t: CellType) {
         let mut pos = self.rand_pos();
-        for _ in 0..rand::gen_range(10, 70) {
+        for _ in 0..rand::gen_range(FOOD_DROP_MIN, FOOD_DROP_MAX) {
             let Some(cell) = self.get_cell_mut(pos) else {
                 continue;
             };
@@ -174,7 +179,7 @@ impl Map {
     }
 
     pub fn update(&mut self) {
-        if rand::gen_range(0, 50) == 0 {
+        if rand::gen_range(0, FOOD_DROP_ODDS) == 0 {
             self.drop_rand_bunch(crate::map::CellType::Food);
         }
     }

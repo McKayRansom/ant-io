@@ -86,8 +86,8 @@ pub struct AntColony {
     pub scents: ScentGrid,
 }
 
-const STARTING_FOOD: Food = 32;
-const STARTING_ANTS: usize = 64;
+const STARTING_FOOD: Food = 128;
+const STARTING_ANTS: usize = 128;
 
 impl AntColony {
     pub fn new(pos: Pos, map: &mut Map, faction: Faction) -> Self {
@@ -107,6 +107,8 @@ impl AntColony {
     }
 
     pub fn update(&mut self, grid: &mut Map) {
+
+        // OPTIMIZE: only check this every few ticks
         for cell in self.scents.grid.iter_mut() {
             cell.update();
         }
@@ -283,11 +285,12 @@ impl Ant {
                 //         .saturating_add(dist_approx)
                 //         .saturating_add(dist_approx / 5)
                 //         .saturating_add(48);
-                //     return Some(self.insect.pos + invert(percep.0 - self.insect.pos));
+                    return Some(self.insect.pos + invert(percep.0 - self.insect.pos));
                 // }
                 // else {
                 // // soldier attack!
-                return Some(percep.0);
+                // return Some(percep.0);
+                // return
                 // }
             }
         }

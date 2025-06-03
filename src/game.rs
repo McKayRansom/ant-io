@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use macroquad::color::colors;
 use macroquad::prelude::*;
 
@@ -5,7 +7,7 @@ use crate::draw::{PILLBUG_COLOR, SPIDER_COLOR, color, draw_game};
 use crate::insect::ant::{Ant, AntColony};
 use crate::insect::pillbug::Pillbug;
 use crate::insect::spider::Spider;
-use crate::map::{Faction, Map};
+use crate::map::{Faction, Map, MAP_SIZE};
 // use crate::grid::{DOWN, Grid, LEFT, RIGHT, SQUARES, UP};
 use crate::pos::{Pos, dirs};
 
@@ -48,25 +50,26 @@ pub struct Game {
     pub spiders: Vec<Spider>,
 }
 
-const NEST_POS: Pos = Pos::new(40 * 2, 60 * 2);
+const NEST_POS: Pos = Pos::new(MAP_SIZE - 20, MAP_SIZE - 10);
 const NEST_POS_2: Pos = Pos::new(20, 10);
+
+const STARTING_PILLBUGS: usize = 400;
+const STARTING_SPIDERS: usize = 100;
 
 impl Game {
     pub fn new() -> Self {
         let mut map = Map::new();
-
-        map.drop_rand_bunch(crate::map::CellType::Food);
 
         Self {
             ant_colonies: vec![
                 AntColony::new(NEST_POS, &mut map, 1),
                 AntColony::new(NEST_POS_2, &mut map, 2),
             ],
-            pillbugs: (0..100)
+            pillbugs: (0..STARTING_PILLBUGS)
                 .into_iter()
                 .map(|_| Pillbug::new(map.rand_pos()))
                 .collect(),
-            spiders: (0..25)
+            spiders: (0..STARTING_SPIDERS)
                 .into_iter()
                 .map(|_| Spider::new(map.rand_pos()))
                 .collect(),
@@ -278,6 +281,20 @@ impl Game {
     }
 }
 
+impl Display for Game {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Ant 0: Pop: {} \nAnt 1: Pop: {} \nPillbugs: {}\nSpiders: {}",
+            self.ant_colonies[0].workers.len(),
+            self.ant_colonies[1].workers.len(),
+            self.pillbugs.len(),
+            self.spiders.len()
+        )
+        // writ("Ants[0]: {}", self.ant_colonies[0].workers.len())
+    }
+}
+
 #[cfg(test)]
 mod game_tests {
     use super::*;
@@ -286,27 +303,64 @@ mod game_tests {
     fn test_pops() {
         let mut game: Game = Game::new();
 
-        for i in 0..4096 {
-            game.update_sim();
-            assert!(!game.pillbugs.is_empty(), "Pillbugs died out at gen {}", i);
-            assert!(game.pillbugs.len() < 500, "Pillbugs overpoped at gen {}", i);
+        for _ in 0..4 {
+            for i in 0..4096 {
+                game.update_sim();
+                assert!(
+                    !game.pillbugs.is_empty(),
+                    "Pillbugs died out at gen {}\n{}",
+                    i,
+                    game
+                );
+                assert!(
+                    game.pillbugs.len() < 1024,
+                    "Pillbugs overpoped at gen {}\n{}",
+                    i,
+                    game
+                );
 
-            assert!(!game.spiders.is_empty(), "Spiders died out at gen {}", i);
-            assert!(game.spiders.len() < 500, "Spiders overpoped at gen {}", i);
+                assert!(
+                    !game.spiders.is_empty(),
+                    "Spiders died out at gen {}\n{}",
+                    i,
+                    game
+                );
+                assert!(
+                    game.spiders.len() < 500,
+                    "Spiders overpoped at gen {}\n{}",
+                    i,
+                    game
+                );
 
-            assert!(!game.ant_colonies[0].workers.is_empty(), "Ants[0] died out at gen {}", i);
-            assert!(game.ant_colonies[0].workers.len() < 500, "Ants[0] overpoped at gen {}", i);
+                assert!(
+                    !game.ant_colonies[0].workers.is_empty(),
+                    "Ants[0] died out at gen {}\n{}",
+                    i,
+                    game
+                );
+                assert!(
+                    game.ant_colonies[0].workers.len() < 500,
+                    "Ants[0] overpoped at gen {}\n{}",
+                    i,
+                    game
+                );
 
-            assert!(!game.ant_colonies[1].workers.is_empty(), "Ants[1] died out at gen {}", i);
-            assert!(game.ant_colonies[1].workers.len() < 500, "Ants[1] overpoped at gen {}", i);
+                assert!(
+                    !game.ant_colonies[1].workers.is_empty(),
+                    "Ants[1] died out at gen {}\n{}",
+                    i,
+                    game
+                );
+                assert!(
+                    game.ant_colonies[1].workers.len() < 500,
+                    "Ants[1] overpoped at gen {}\n{}",
+                    i,
+                    game
+                );
+            }
+
+            println!("{}", game);
         }
-
-        println!("Final pillbugs: {}", game.pillbugs.len());
-        println!("Final spiders: {}", game.spiders.len());
-        println!("Final ant[0]: {}", game.ant_colonies[0].workers.len());
-        println!("Final ant[1]: {}", game.ant_colonies[1].workers.len());
-
-        assert!(false)
+        assert!(false, "PASSED");
     }
-
 }

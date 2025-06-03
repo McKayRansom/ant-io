@@ -6,12 +6,20 @@ use crate::{
     pos::Pos,
 };
 
+use super::Hunger;
+
 pub struct Pillbug {
     pub insect: Insect,
     pub curled: bool,
     pub speed: u8,
-    pub reproduce: u8,
+    pub reproduce: u16,
 }
+
+const PILLBUG_REPRODUCE_TIME: u16 = 255;
+const PILLBUG_REPRODUCE_COST: Hunger = u8::MAX as Hunger * 2;
+
+const PILLBUG_EAT_THRESHOLD: Hunger = u8::MAX as Hunger * 2;
+const PILLBUG_FOOD_VALUE: Hunger = u8::MAX as Hunger;
 
 impl Pillbug {
     pub fn new(pos: Pos) -> Self {
@@ -19,12 +27,12 @@ impl Pillbug {
             insect: Insect::new(pos, FACTION_PILLBUG),
             curled: false,
             speed: 0,
-            reproduce: rand::gen_range(0, u8::MAX / 4),
+            reproduce: rand::gen_range(0, PILLBUG_REPRODUCE_TIME / 4),
         }
     }
 
     pub fn update(&mut self, map: &mut Map, new_bugs: &mut Vec<Pos>) -> bool {
-        let mut will_move = if self.speed == 1 {
+        let will_move = if self.speed == 1 {
             self.speed = 0;
             true
         } else {
@@ -32,27 +40,32 @@ impl Pillbug {
             false
         };
         self.reproduce = self.reproduce.saturating_add(1);
-        if self.reproduce == 128 && self.insect.hunger > u8::MAX as u16 {
+        if self.reproduce == PILLBUG_REPRODUCE_TIME && self.insect.hunger > PILLBUG_REPRODUCE_COST
+        {
             self.reproduce = 0;
-            self.insect.hunger -= u8::MAX as u16;
+            self.insect.hunger -= PILLBUG_REPRODUCE_COST;
             new_bugs.push(self.insect.pos);
         }
 
-        self.insect.hunger = self.insect.hunger.saturating_sub(1);
+        // self.insect.hunger = self.insect.hunger.saturating_sub(1);
 
         if will_move {
             // eat the food?
-            if self.insect.hunger < u8::MAX as u16 {
+            if self.insect.hunger < PILLBUG_EAT_THRESHOLD {
                 if let Some(_food) = map
                     .get_cell_mut(self.insect.pos)
                     .unwrap()
                     .take_type(CellType::Food)
                 {
-                    self.insect.hunger += u8::MAX as u16;
+                    self.insect.hunger += PILLBUG_FOOD_VALUE;
                 }
-            } else if map.get_cell(self.insect.pos).unwrap().is_type(CellType::Food) {
+            } else if map
+                .get_cell(self.insect.pos)
+                .unwrap()
+                .is_type(CellType::Food)
+            {
                 // no point in moving lol, stay on the food!
-                will_move = false;
+                // will_move = false;
             }
         }
 

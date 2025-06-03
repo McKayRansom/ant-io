@@ -21,13 +21,17 @@ pub mod spider;
 
 pub type Perception = [(Pos, Sight); 5];
 
+pub type Hunger = u16;
+
+// pub const DE
+
 /// Base class-ish for different insect types
 #[derive(Debug, Clone)]
 pub struct Insect {
     pub pos: Pos,
     pub dir: Pos,
     occupy: Rc<RefCell<Faction>>,
-    pub hunger: u16,
+    pub hunger: Hunger,
 }
 
 impl Insect {

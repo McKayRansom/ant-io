@@ -2,9 +2,11 @@ use macroquad::prelude::rand;
 
 use crate::{
     insect::Insect,
-    map::{CellType, FACTION_NONE, FACTION_PILLBUG, FACTION_SPIDER, Map},
+    map::{FACTION_NONE, FACTION_PILLBUG, FACTION_SPIDER, Map},
     pos::Pos,
 };
+
+use super::Hunger;
 
 pub struct Spider {
     pub insect: Insect,
@@ -14,7 +16,14 @@ pub struct Spider {
     pub digest: u8,
 }
 
-const DIGEST_TIME: u8 = 32;
+const SPIDER_REPRODUCE_TIME: u8 = 10;
+const SPIDER_REPRODUCE_COST: Hunger = 255;
+const SPIDER_REPRODUCE_THRESHOLD: Hunger = 502;
+
+const SPIDER_EAT_VAL: Hunger = 500;
+
+// ANTS ONLY FOR NOW
+const DIGEST_TIME: u8 = 64;
 
 impl Spider {
     pub fn new(pos: Pos) -> Self {
@@ -37,9 +46,12 @@ impl Spider {
         };
 
         self.reproduce = self.reproduce.saturating_add(1);
-        if self.reproduce == u8::MAX && self.insect.hunger > u8::MAX as u16 {
+        // save some hunger so we don't starve
+        if self.reproduce == SPIDER_REPRODUCE_TIME
+            && self.insect.hunger > SPIDER_REPRODUCE_THRESHOLD
+        {
             self.reproduce = 0;
-            self.insect.hunger -= u8::MAX as u16;
+            self.insect.hunger -= SPIDER_REPRODUCE_COST;
             new_bugs.push(self.insect.pos);
         }
 
@@ -52,9 +64,14 @@ impl Spider {
         let perception = self.insect.perception(map);
         let mut best_pos = Some(self.insect.move_random());
         for percep in &perception {
-            if percep.1.cell_type == CellType::Empty // temp fix to not eat hiding pillbugs (rocks)
-                && (self.digest == 0 || percep.1.faction == FACTION_PILLBUG) // always eat pillbugs, they be pestin
+            // if percep.1.cell_type == CellType::Empty // temp fix to not eat hiding pillbugs (rocks)
+            // && (self.digest == 0 || percep.1.faction == FACTION_PILLBUG) // always eat pillbugs, they be pestin
+            // only eat pillbugs (temp)
+            if self.digest == 0
                 && (percep.1.faction != FACTION_SPIDER && percep.1.faction != FACTION_NONE)
+                || percep.1.faction == FACTION_PILLBUG
+            // if self.digest == 0 && (percep.1.faction == FACTION_PILLBUG)
+            // if percep.1.faction == FACTION_PILLBUG
             {
                 // Eat or something IDK, we are still vulerable from behind, TBD if this is OP
                 best_pos = None; // don't move into pos and die
@@ -64,7 +81,7 @@ impl Spider {
                     .try_occupy(FACTION_SPIDER);
                 if occupy.is_none() {
                     // we ate something! Horray!
-                    self.insect.hunger = self.insect.hunger.saturating_add(u8::MAX as u16);
+                    self.insect.hunger = self.insect.hunger.saturating_add(SPIDER_EAT_VAL);
                     self.digest = DIGEST_TIME;
                 }
                 break;
