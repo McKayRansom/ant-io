@@ -62,11 +62,11 @@ impl Game {
                 AntColony::new(NEST_POS, &mut map, 1),
                 AntColony::new(NEST_POS_2, &mut map, 2),
             ],
-            pillbugs: (0..50)
+            pillbugs: (0..100)
                 .into_iter()
                 .map(|_| Pillbug::new(map.rand_pos()))
                 .collect(),
-            spiders: (0..30)
+            spiders: (0..25)
                 .into_iter()
                 .map(|_| Spider::new(map.rand_pos()))
                 .collect(),
