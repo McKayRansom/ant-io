@@ -10,7 +10,7 @@ pub struct Spider {
     pub insect: Insect,
     // pub curled: bool,
     pub speed: u8,
-        pub reproduce: u8,
+    pub reproduce: u8,
 }
 
 impl Spider {
@@ -42,7 +42,7 @@ impl Spider {
         for percep in &perception {
             if percep.1.cell_type == CellType::Empty && (percep.1.faction != FACTION_SPIDER && percep.1.faction != FACTION_NONE) {
                 // Eat or something IDK, we are still vulerable from behind, TBD if this is OP
-                best_pos = Some(percep.0);
+                best_pos = None; // don't move into pos and die
                 let occupy = map.get_cell_mut(percep.0).unwrap().try_occupy(FACTION_SPIDER);
                 if occupy.is_none() {
                     // we ate something! Horray!
