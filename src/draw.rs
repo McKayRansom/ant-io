@@ -66,23 +66,29 @@ pub fn draw_map(map: &Map) {
 }
 
 pub fn draw_scents(colony: &AntColony, map: &Map) {
-    for (pos, cell) in colony.scents.iter() {
+    let mut pos = Pos::new(0, 0);
+    for cell in colony.scents.grid.iter() {
+        pos.x += 1;
+        if pos.x >= map.size.x {
+            pos.x = 0;
+            pos.y += 1;
+        }
         // draw scents
         if cell.get_scent(Scents::Attack) > 0 {
             let scent_alpha = cell.get_scent(Scents::Attack) as f32 / u8::MAX as f32;
             let mut color = colors::RED;
             color.a = scent_alpha / 2.;
-            draw_cell(map, *pos, color);
+            draw_cell(map, pos, color);
         } else if cell.get_scent(Scents::Food) > 0 {
             let scent_alpha = cell.get_scent(Scents::Food) as f32 / u8::MAX as f32;
             let mut color = colors::GREEN;
             color.a = scent_alpha / 2.;
-            draw_cell(map, *pos, color);
+            draw_cell(map, pos, color);
         } else if cell.get_scent(Scents::Nest) > 0 {
             let scent_alpha = cell.get_scent(Scents::Nest) as f32 / u8::MAX as f32;
             let mut color = colors::LIGHTGRAY;
             color.a = scent_alpha / 2.;
-            draw_cell(map, *pos, color);
+            draw_cell(map, pos, color);
         }
     }
 }

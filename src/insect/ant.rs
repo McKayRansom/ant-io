@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::u8;
 
 use macroquad::prelude::rand;
@@ -21,7 +20,7 @@ pub enum Scents {
     Len,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct ScentCell {
     scents: [u8; Scents::Len as usize],
 }
@@ -44,12 +43,39 @@ impl ScentCell {
     }
 }
 
-// pub struct ScentGrid {
-// 
-// }
-pub type ScentGrid = HashMap<Pos, ScentCell>;
+pub struct ScentGrid {
+    size: Pos,
+    pub grid: Vec<ScentCell>,
+}
 
-#[derive(Debug)]
+impl ScentGrid {
+    pub fn new(size: Pos) -> Self {
+        Self {
+            grid: vec![ScentCell::default(); size.x as usize * size.y as usize],
+            size,
+        }
+    }
+
+    pub fn get(&self, pos: Pos) -> Option<&ScentCell> {
+        if pos.x < 0 || pos.y < 0 || pos.x >= self.size.x {
+            None
+        } else {
+            self.grid
+                .get(pos.x as usize + (pos.y as usize * self.size.x as usize))
+        }
+    }
+    pub fn get_mut(&mut self, pos: Pos) -> Option<&mut ScentCell> {
+        if pos.x < 0 || pos.y < 0 || pos.x >= self.size.x {
+            None
+        } else {
+            self.grid
+                .get_mut(pos.x as usize + pos.y as usize * self.size.x as usize)
+        }
+    }
+}
+// pub type ScentGrid = HashMap<Pos, ScentCell>;
+
+// #[derive(Debug)]
 pub struct AntColony {
     pub faction: Faction,
     pub food: Food,
@@ -75,13 +101,13 @@ impl AntColony {
             workers: vec![Ant::new(pos, faction); STARTING_ANTS],
             // soldiers: vec![Ant::new(pos, faction); STARTING_ANTS / 4],
             soldiers: Vec::new(),
-            scents: HashMap::new(),
+            scents: ScentGrid::new(map.size),
             nest_pos: pos,
         }
     }
 
     pub fn update(&mut self, grid: &mut Map) {
-        for cell in self.scents.values_mut() {
+        for cell in self.scents.grid.iter_mut() {
             cell.update();
         }
 
@@ -130,7 +156,7 @@ impl Ant {
     // smell pheremones only
     fn smell(scents: &ScentGrid, pos: Pos, scent: Scents) -> u8 {
         scents
-            .get(&pos)
+            .get(pos)
             .map(|cell| cell.get_scent(scent))
             .unwrap_or(0)
     }
@@ -141,7 +167,7 @@ impl Ant {
     // }
 
     pub fn update_scents(&mut self, scents: &mut ScentGrid) {
-        let scent_cell = scents.entry(self.insect.pos).or_default();
+        let scent_cell = scents.get_mut(self.insect.pos).unwrap();
 
         if self.food.is_some() {
             let dist_approx = u8::MAX - self.nest_scent;
@@ -261,7 +287,7 @@ impl Ant {
                 // }
                 // else {
                 // // soldier attack!
-                    return Some(percep.0);
+                return Some(percep.0);
                 // }
             }
         }
