@@ -5,7 +5,7 @@ use macroquad::{
 
 use crate::{
     game::Game,
-    insect::ant::{Ant, AntColony, Scents},
+    insect::{ant::{Ant, AntColony, Scents}, spider::Spider},
     map::{CellType, Faction, Map},
     pos::Pos,
 };
@@ -30,13 +30,10 @@ pub fn draw_game(game: &Game) {
     }
 
     for spider in &game.spiders {
-        draw_cell(&game.map, spider.insect.pos, SPIDER_COLOR);
-        if spider.digest > 0 {
-            draw_cell_small(&game.map, spider.insect.pos, colors::WHITE);
-        }
+        draw_spider(spider, &game.map, SPIDER_COLOR);
     }
 
-    draw_ant(&game.player, &game.map, colors::YELLOW);
+    draw_spider(&game.player, &game.map, colors::YELLOW);
 }
 
 pub fn draw_map(map: &Map) {
@@ -138,5 +135,12 @@ pub fn draw_ant(ant: &Ant, map: &Map, color: Color) {
     draw_cell(map, ant.insect.pos, color);
     if ant.has_food() {
         draw_cell_small(map, ant.insect.pos, FOOD_COLOR);
+    }
+}
+
+pub fn draw_spider(spider: &Spider, map: &Map, color: Color) {
+    draw_cell(&map, spider.insect.pos, color);
+    if spider.digest > 0 {
+        draw_cell_small(&map, spider.insect.pos, colors::WHITE);
     }
 }

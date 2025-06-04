@@ -285,11 +285,11 @@ impl Ant {
                 //         .saturating_add(dist_approx)
                 //         .saturating_add(dist_approx / 5)
                 //         .saturating_add(48);
-                    return Some(self.insect.pos + invert(percep.0 - self.insect.pos));
+                    // return Some(self.insect.pos + invert(percep.0 - self.insect.pos));
                 // }
                 // else {
                 // // soldier attack!
-                // return Some(percep.0);
+                return Some(percep.0);
                 // return
                 // }
             }

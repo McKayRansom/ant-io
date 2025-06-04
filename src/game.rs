@@ -7,7 +7,7 @@ use crate::draw::{PILLBUG_COLOR, SPIDER_COLOR, color, draw_game};
 use crate::insect::ant::{Ant, AntColony};
 use crate::insect::pillbug::Pillbug;
 use crate::insect::spider::Spider;
-use crate::map::{Faction, Map, MAP_SIZE};
+use crate::map::{Faction, Map, FACTION_SPIDER, MAP_SIZE};
 // use crate::grid::{DOWN, Grid, LEFT, RIGHT, SQUARES, UP};
 use crate::pos::{Pos, dirs};
 
@@ -43,7 +43,8 @@ pub struct Game {
     game_over: bool,
     pub game_won: bool,
     pub ant_colonies: Vec<AntColony>,
-    pub player: Ant,
+    pub player: Spider,
+    pub player_dir: Pos,
     pub show_scents: Faction,
     pub paused: bool,
     pub pillbugs: Vec<Pillbug>,
@@ -53,8 +54,8 @@ pub struct Game {
 const NEST_POS: Pos = Pos::new(MAP_SIZE - 20, MAP_SIZE - 10);
 const NEST_POS_2: Pos = Pos::new(20, 10);
 
-const STARTING_PILLBUGS: usize = 400;
-const STARTING_SPIDERS: usize = 100;
+const STARTING_PILLBUGS: usize = 250;
+const STARTING_SPIDERS: usize = 50;
 
 impl Game {
     pub fn new() -> Self {
@@ -73,17 +74,19 @@ impl Game {
                 .into_iter()
                 .map(|_| Spider::new(map.rand_pos()))
                 .collect(),
+            player: Spider::new(map.rand_pos()),
+            player_dir: dirs::NONE,
             map,
             speed: Speed::SLOW,
             last_update: 0.,
             game_over: false,
             game_won: true,
-            player: Ant::new(NEST_POS, 1),
             show_scents: 0,
             paused: false,
         }
     }
 
+    /// NOTE: will be run more than once per sim tick!! must handle this correctly
     pub fn update_player_input(&mut self) {
         let mut input_dir = dirs::NONE;
         if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
@@ -96,12 +99,18 @@ impl Game {
         } else if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
             input_dir.y = 1;
         }
-        self.player.insect.dir = input_dir;
+        self.player_dir = input_dir;
 
-        if is_key_down(KeyCode::LeftShift) {
-            self.player.attack_scent = u8::MAX;
+        // if is_key_down(KeyCode::LeftShift) {
+        //     self.player.food_scent = u8::MAX;
+        // } else {
+        //     self.player.food_scent = 0;
+        // }
+        if is_key_down(KeyCode::X) {
+            self.player.reproduce = u8::MAX;
+            // self.player.insect.hunger = 550;
         } else {
-            self.player.attack_scent = 0;
+            self.player.reproduce = 0;
         }
         if is_key_pressed(KeyCode::Key1) {
             if self.show_scents == 1 {
@@ -133,30 +142,57 @@ impl Game {
         }
     }
 
-    pub fn update_player(&mut self) {
-        let colony = &mut self.ant_colonies[0];
+    pub fn update_player(&mut self, new_bugs: &mut Vec<Pos>) -> bool {
 
-        let _seeking = self
-            .player
-            .update_behaviour(&mut self.map, &mut colony.food, 1);
-        self.player.update_scents(&mut colony.scents);
-        self.player.insect.hunger = u16::MAX;
-
-        if self.player.insect.update(
-            Some(self.player.insect.pos + self.player.insect.dir),
-            &mut self.map,
-            self.ant_colonies[0].faction,
-        ) == false
-        {
-            // we dead, make new player
-            self.player = Ant::new(NEST_POS, 1);
+        let will_move = self.player.speed == 1;
+        let old_speed = self.player.speed;
+        self.player.speed = 0;
+        let res = self.player.update(&mut self.map, new_bugs);
+        if old_speed == 0 {
+            self.player.speed = 1;
+        } else {
+            self.player.speed = 0
         }
+        if will_move && self.player_dir != dirs::NONE {
+            res && self.player.insect.update(Some(self.player.insect.pos + self.player_dir), &mut self.map, FACTION_SPIDER)
+        } else {
+            res
+        }
+
+        // let colony = &mut self.ant_colonies[0];
+
+        // let scent = self.player.food_scent;
+
+        // let _seeking = self
+        //     .player
+        //     .update_behaviour(&mut self.map, &mut colony.food, 1);
+
+        // self.player.update_scents(&mut colony.scents);
+
+        // self.player.food_scent = scent;
+        // self.player.insect.hunger = u16::MAX;
+
+        // if self.player.insect.update(
+        //     Some(self.player.insect.pos + self.player.insect.dir),
+        //     &mut self.map,
+        //     self.ant_colonies[0].faction,
+        // ) == false
+        // {
+        //     // we dead, make new player
+        //     self.player = Ant::new(NEST_POS, 1);
+        // }
     }
 
     pub fn update_sim(&mut self) {
         let mut new_bugs: Vec<Pos> = Vec::new();
         self.spiders
             .retain_mut(|spider| spider.update(&mut self.map, &mut new_bugs));
+
+        if !self.update_player(&mut new_bugs) {
+            // find a new spider for the player
+            self.player = Spider::new(self.map.rand_pos());
+        }
+
         // this is stupid but IDK
         for pos in new_bugs.iter() {
             self.spiders.push(Spider::new(*pos));
@@ -190,7 +226,7 @@ impl Game {
                 //     self.game_over = true;
                 // }
 
-                self.update_player();
+                // self.update_player();
             }
         }
 
@@ -246,13 +282,13 @@ impl Game {
             SPIDER_COLOR,
         );
 
-        // draw_text(
-        //     format!("P Hunger: {}", self.player.insect.hunger).as_str(),
-        //     10.,
-        //     100.,
-        //     24.,
-        //     colors::YELLOW,
-        // );
+        draw_text(
+            format!("P Hunger: {}", self.player.insect.hunger / 500).as_str(),
+            10.,
+            100.,
+            24.,
+            colors::YELLOW,
+        );
 
         // if self.game_over {
         //     // clear_background(BLACK);

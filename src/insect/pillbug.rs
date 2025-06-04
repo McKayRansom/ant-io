@@ -15,8 +15,8 @@ pub struct Pillbug {
     pub reproduce: u16,
 }
 
-const PILLBUG_REPRODUCE_TIME: u16 = 255;
-const PILLBUG_REPRODUCE_COST: Hunger = u8::MAX as Hunger * 2;
+const PILLBUG_REPRODUCE_TIME: u16 = 128;
+const PILLBUG_REPRODUCE_COST: Hunger = u8::MAX as Hunger;
 
 const PILLBUG_EAT_THRESHOLD: Hunger = u8::MAX as Hunger * 2;
 const PILLBUG_FOOD_VALUE: Hunger = u8::MAX as Hunger;
@@ -32,7 +32,7 @@ impl Pillbug {
     }
 
     pub fn update(&mut self, map: &mut Map, new_bugs: &mut Vec<Pos>) -> bool {
-        let will_move = if self.speed == 1 {
+        let mut will_move = if self.speed == 1 {
             self.speed = 0;
             true
         } else {
@@ -40,7 +40,7 @@ impl Pillbug {
             false
         };
         self.reproduce = self.reproduce.saturating_add(1);
-        if self.reproduce == PILLBUG_REPRODUCE_TIME && self.insect.hunger > PILLBUG_REPRODUCE_COST
+        if self.reproduce >= PILLBUG_REPRODUCE_TIME && self.insect.hunger > PILLBUG_REPRODUCE_COST
         {
             self.reproduce = 0;
             self.insect.hunger -= PILLBUG_REPRODUCE_COST;
@@ -65,7 +65,7 @@ impl Pillbug {
                 .is_type(CellType::Food)
             {
                 // no point in moving lol, stay on the food!
-                // will_move = false;
+                will_move = false;
             }
         }
 

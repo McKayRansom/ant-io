@@ -16,14 +16,14 @@ pub struct Spider {
     pub digest: u8,
 }
 
-const SPIDER_REPRODUCE_TIME: u8 = 10;
-const SPIDER_REPRODUCE_COST: Hunger = 255;
-const SPIDER_REPRODUCE_THRESHOLD: Hunger = 502;
+const SPIDER_REPRODUCE_TIME: u8 = 250;
+const SPIDER_REPRODUCE_COST: Hunger = 512;
+const SPIDER_REPRODUCE_THRESHOLD: Hunger = 512;
 
-const SPIDER_EAT_VAL: Hunger = 500;
+const SPIDER_EAT_VAL: Hunger = 255;
 
 // ANTS ONLY FOR NOW
-const DIGEST_TIME: u8 = 64;
+const DIGEST_TIME: u8 = 32;
 
 impl Spider {
     pub fn new(pos: Pos) -> Self {
@@ -47,7 +47,7 @@ impl Spider {
 
         self.reproduce = self.reproduce.saturating_add(1);
         // save some hunger so we don't starve
-        if self.reproduce == SPIDER_REPRODUCE_TIME
+        if self.reproduce >= SPIDER_REPRODUCE_TIME
             && self.insect.hunger > SPIDER_REPRODUCE_THRESHOLD
         {
             self.reproduce = 0;
@@ -69,7 +69,7 @@ impl Spider {
             // only eat pillbugs (temp)
             if self.digest == 0
                 && (percep.1.faction != FACTION_SPIDER && percep.1.faction != FACTION_NONE)
-                || percep.1.faction == FACTION_PILLBUG
+                // || percep.1.faction == FACTION_PILLBUG
             // if self.digest == 0 && (percep.1.faction == FACTION_PILLBUG)
             // if percep.1.faction == FACTION_PILLBUG
             {

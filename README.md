@@ -25,6 +25,7 @@ Small insect simulation at Huge scale. Lead your ant/bee/beetles/pillbug populat
 - How to manage difficulty with so many random actions
 
 ## Ideas
+
  - Creature creator like SPORE, but with real costs to things (wings have higher energy use, eyes have higher energy use and longer growth time, etc...)
   - Tailor your creature to a specific niche
     - Spider-eating: Anti-web feet, crushing jaws
@@ -35,3 +36,4 @@ Small insect simulation at Huge scale. Lead your ant/bee/beetles/pillbug populat
     - Diggers: Dig around and eat plant roots?
     - Aphids: Eat plants
     - Ant-lions: Camoflauge and dig holes
+  - This seems very complicated, but much more interesting than just sim-ant... (or any other ant-rts honestly...)
