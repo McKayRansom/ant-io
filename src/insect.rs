@@ -23,15 +23,93 @@ pub type Perception = [(Pos, Sight); 5];
 
 pub type Hunger = u16;
 
+pub type SpeciesId = u8;
+
 // pub const DE
+// maybe add phenotype later?
+pub struct Species {
+    faction_id: u8,
+    speed: u8,
+    food_storage: Hunger,
+}
+
+// behaviour(insect, map, perception, new_bugs, species):
+// - reproduction: if hunger < repro birth
+// - herbivore: if (food) if preceive(food) move()
+// - carnivore: if (sense insect) eat_insect()
+// - ants: ant logic
+// - ants_solider: soldier logic
+// - shell: if (sense carnivore) hide() else { unhide() }
+
+pub enum Action {
+    Reproduce(Species),
+    Eat(Hunger),
+    Move(Pos),
+}
+
+pub enum Behaviour {
+    Reproduce(Reproduce),
+}
+
+impl Behaviour {
+    pub fn update(&mut self, insect: Insect, perception: Perception) -> Option<Action> {
+        match self {
+            Behaviour::Reproduce(reproduce) => reproduce.update(&insect, perception),
+        }
+    }
+}
+
+pub struct Reproduce {
+    time: u16,
+    repro_time: u16,
+    cost: Hunger,
+    // species ID??
+}
+
+impl Reproduce {
+    fn update(&mut self, insect: &Insect, perception: Perception) -> Option<Action> {
+        self.time = self.time.saturating_add(1);
+        if self.time >= self.repro_time && insect.hunger > self.cost {
+            Some(Action::Reproduce(todo!()))
+        } else {
+            None
+        }
+    }
+}
+
+pub struct Herbivore {
+    eat_threshold: Hunger,
+    food_value: Hunger,
+}
+
+impl Herbivore {
+    fn update(&mut self, insect: &Insect, perception: Perception) -> Option<Action> {
+        let mut food_pos = None;
+        for precep in perception {
+            if precep.1.faction != insect.faction {
+                // run ?
+                return Some(Action::Move(invert(precep.0 - insect.pos)));
+            }
+        }
+        if let Some(pos) = food_pos {
+            Some(Action::Move(pos))
+        } else {
+            None
+        }
+    }
+}
 
 /// Base class-ish for different insect types
-#[derive(Debug, Clone)]
+// #[derive(Clone)]
 pub struct Insect {
     pub pos: Pos,
     pub dir: Pos,
     occupy: Rc<RefCell<Faction>>,
     pub hunger: Hunger,
+    pub behaviours: [Behaviour; 4],
+    // speed
+    // digest_time (carnivores only)
+    //
 }
 
 impl Insect {
@@ -40,7 +118,7 @@ impl Insect {
             pos,
             dir: dirs::rand(),
             occupy: Rc::new(RefCell::new(faction)),
-            hunger: rand::gen_range(u8::MAX as u16 / 2 , u8::MAX as u16),
+            hunger: rand::gen_range(u8::MAX as u16 / 2, u8::MAX as u16),
         }
     }
 

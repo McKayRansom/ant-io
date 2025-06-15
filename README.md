@@ -37,3 +37,20 @@ Small insect simulation at Huge scale. Lead your ant/bee/beetles/pillbug populat
     - Aphids: Eat plants
     - Ant-lions: Camoflauge and dig holes
   - This seems very complicated, but much more interesting than just sim-ant... (or any other ant-rts honestly...)
+- SURVIVAL GAME 
+  - lots of baddies big and small
+  - have to survive and upgrade your creature
+- ANT RTS
+  - Keep your colony alive against larger threats TBD, needs interesting obstacles
+  - Controlling ANTS TBD
+- Rougelike
+  - Each sector has different enimies (a.la. Into the breach)
+  - Unlock customizations for your insect
+  - Goal is to defeat a big spider or something
+
+## Problems:
+ - Difficulty curve is backwards, hard to get a foothold and defeat predators...
+  - Somehow scale difficult based on distance from start
+  - Predators ignore below a certain size...
+  - Map grid with varying difficulty/rewards...
+  - Start predators far away so they take a while to migrate closer to player (somewhat random obvy but gives grace period)

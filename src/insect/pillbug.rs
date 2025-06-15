@@ -1,7 +1,7 @@
 use macroquad::prelude::rand;
 
 use crate::{
-    insect::Insect,
+    insect::{Insect, Species},
     map::{CellType, FACTION_NONE, FACTION_PILLBUG, Map},
     pos::Pos,
 };
@@ -17,9 +17,18 @@ pub struct Pillbug {
 
 const PILLBUG_REPRODUCE_TIME: u16 = 128;
 const PILLBUG_REPRODUCE_COST: Hunger = u8::MAX as Hunger;
+const PILLBUG_SPEED: u8 = 2;
 
 const PILLBUG_EAT_THRESHOLD: Hunger = u8::MAX as Hunger * 2;
 const PILLBUG_FOOD_VALUE: Hunger = u8::MAX as Hunger;
+
+pub fn init() -> Species {
+    Species {
+        faction_id: FACTION_PILLBUG,
+        speed: PILLBUG_SPEED,
+        food_storage: PILLBUG_REPRODUCE_COST * 2,
+    }
+}
 
 impl Pillbug {
     pub fn new(pos: Pos) -> Self {
@@ -40,8 +49,7 @@ impl Pillbug {
             false
         };
         self.reproduce = self.reproduce.saturating_add(1);
-        if self.reproduce >= PILLBUG_REPRODUCE_TIME && self.insect.hunger > PILLBUG_REPRODUCE_COST
-        {
+        if self.reproduce >= PILLBUG_REPRODUCE_TIME && self.insect.hunger > PILLBUG_REPRODUCE_COST {
             self.reproduce = 0;
             self.insect.hunger -= PILLBUG_REPRODUCE_COST;
             new_bugs.push(self.insect.pos);
