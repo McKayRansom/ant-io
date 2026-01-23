@@ -2,11 +2,29 @@
 # Ant-io
 Small insect simulation at Huge scale. Lead your ant/bee/beetles/pillbug population to survive in a harsh insect-eats-insect world.
 
+## Singleplayer MVP
+ - Choose your faction and battle for control of the lawn
+ - You control just another bug in the battle for survival
+ - Procedurally generated map
+
 ## Design
 - Goal: Survive (Unlocks for surviving X amount of time, reaching X pop, etc...)
   - Tutorial goals like: survive to adulthood, reproduce, etc...
 - Obstacles: Starvation, predators, limited sight distance!
 - Actions: Personally run around, AND manage global species traits (Soldiers vs Ants, Attack vs Defend, etc...)
+- Get your "Faction" to win! By personally doing well and recruiting friends!
+- For this to work like Agar.io movement needs to be intereseting
+  - Animations for moving, attacking, etc...
+  - Digging, attacking requires some skill 
+- Health bar
+  - Dmg = Attack - Armor (attacking uses hunger)
+  - Regen if hunger is > 50%, uses hunger
+  - Value based on body weight (less speed)
+- Hunger bar
+  - Refilled by eat
+  - Lowered by move, attack, reproduce, dig
+  - Reproduce by laying eggs
+
 
 ### Faction Actions
 - Woodlouse: Eat X food to grow to adulthood, once adult reproduce (turorial insect due to ease of use), cheat and have war scent
@@ -17,7 +35,22 @@ Small insect simulation at Huge scale. Lead your ant/bee/beetles/pillbug populat
 - Predators: more interesting to play, fewer pop but more likely to survive
 - Termites: Ants but eat dead plants instead of seeds/carnivores
 - Plants: Drop seeds around the same time
-- Spiders: Web creation, catches bugs
+- Spiders: Web creation, catches bugs, loses straight up but can trap prey so they can't fight back
+- Worms: Underground only (usually), grow by splitting (unrealistic but fun), eat regular dirt?
+- Centipedes: Predators, become more powerful the more people eaten
+- Millipedes: Difficult to fight herbivores, become more powerful the more eaten
+- Aphids: Eat plants
+- Beatles: Strong predators
+- Flying insects?
+
+Needs some kind of basic combat system
+ - Shells should impart some kind of "armor" rating.
+ - Large jaws have higher attack
+ - Small jaws cannot overcome shells
+ - Other than that
+   - Health system, so that battles last a litle while and are interesting
+   - Centipedes/worms global vs segment health pool?
+   - Cute starcraft-esque health bars
 
 ## Questions
 - RTS/Citysim vs Control single insect (more fun maybe?)
@@ -37,3 +70,9 @@ Small insect simulation at Huge scale. Lead your ant/bee/beetles/pillbug populat
     - Aphids: Eat plants
     - Ant-lions: Camoflauge and dig holes
   - This seems very complicated, but much more interesting than just sim-ant... (or any other ant-rts honestly...)
+- sandbox mode where you can just play around!
+
+- Some kind of nest mechanic for ants and spiders
+  - Drop off food in nest
+  - Return to nest?
+  - Queen ant in nest?

@@ -25,6 +25,8 @@ const SPIDER_EAT_VAL: Hunger = 255;
 // ANTS ONLY FOR NOW
 const DIGEST_TIME: u8 = 32;
 
+const SPIDER_SPEED: u8 = 1;
+
 impl Spider {
     pub fn new(pos: Pos) -> Self {
         Self {
@@ -37,26 +39,10 @@ impl Spider {
     }
 
     pub fn update(&mut self, map: &mut Map, new_bugs: &mut Vec<Pos>) -> bool {
-        let will_move = if self.speed == 1 {
-            self.speed = 0;
-            true
-        } else {
-            self.speed = 1;
-            false
-        };
 
-        self.reproduce = self.reproduce.saturating_add(1);
-        // save some hunger so we don't starve
-        if self.reproduce >= SPIDER_REPRODUCE_TIME
-            && self.insect.hunger > SPIDER_REPRODUCE_THRESHOLD
-        {
-            self.reproduce = 0;
-            self.insect.hunger -= SPIDER_REPRODUCE_COST;
+        if self.insect.update_reproduce(&mut self.reproduce, SPIDER_REPRODUCE_TIME, SPIDER_REPRODUCE_COST) {
             new_bugs.push(self.insect.pos);
         }
-
-        // use more energy as balancing
-        // self.insect.hunger = self.insect.hunger.saturating_sub(1);
 
         // oof
         self.digest = self.digest.saturating_sub(1);
@@ -87,6 +73,8 @@ impl Spider {
                 break;
             }
         }
+
+        let will_move = Insect::will_move(&mut self.speed, SPIDER_SPEED);
 
         self.insect
             .update(if will_move { best_pos } else { None }, map, FACTION_SPIDER)

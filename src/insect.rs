@@ -73,6 +73,30 @@ impl Insect {
         }
     }
 
+    pub fn will_move(speed: &mut u8, max_speed: u8) -> bool {
+        if *speed == 0 {
+            *speed = max_speed;
+            true
+        } else {
+            *speed -= 1;
+            false
+        }
+    }
+
+    pub fn update_reproduce(&mut self, reproduce_cooldown: &mut u8, reproduce_time: u8, reproduce_cost: u16) -> bool {
+        *reproduce_cooldown = reproduce_cooldown.saturating_add(1);
+        // TODO: save some hunger so we don't starve
+        if *reproduce_cooldown >= reproduce_time
+            && self.hunger > reproduce_cost
+        {
+            *reproduce_cooldown = 0;
+            self.hunger -= reproduce_cost;
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn update(&mut self, next_pos: Option<Pos>, map: &mut Map, faction: Faction) -> bool {
         // check if we were killed!
         let mut ref_cell_faction = self.occupy.borrow_mut();

@@ -146,7 +146,7 @@ impl Game {
 
         let will_move = self.player.speed == 1;
         let old_speed = self.player.speed;
-        self.player.speed = 0;
+        self.player.speed = 1;
         let res = self.player.update(&mut self.map, new_bugs);
         if old_speed == 0 {
             self.player.speed = 1;

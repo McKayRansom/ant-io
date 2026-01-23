@@ -12,14 +12,16 @@ pub struct Pillbug {
     pub insect: Insect,
     pub curled: bool,
     pub speed: u8,
-    pub reproduce: u16,
+    pub reproduce: u8,
 }
 
-const PILLBUG_REPRODUCE_TIME: u16 = 128;
+const PILLBUG_REPRODUCE_TIME: u8 = 128;
 const PILLBUG_REPRODUCE_COST: Hunger = u8::MAX as Hunger;
 
 const PILLBUG_EAT_THRESHOLD: Hunger = u8::MAX as Hunger * 2;
 const PILLBUG_FOOD_VALUE: Hunger = u8::MAX as Hunger;
+
+const PILLBUG_SPEED: u8 = 1;
 
 impl Pillbug {
     pub fn new(pos: Pos) -> Self {
@@ -32,18 +34,9 @@ impl Pillbug {
     }
 
     pub fn update(&mut self, map: &mut Map, new_bugs: &mut Vec<Pos>) -> bool {
-        let mut will_move = if self.speed == 1 {
-            self.speed = 0;
-            true
-        } else {
-            self.speed = 1;
-            false
-        };
-        self.reproduce = self.reproduce.saturating_add(1);
-        if self.reproduce >= PILLBUG_REPRODUCE_TIME && self.insect.hunger > PILLBUG_REPRODUCE_COST
-        {
-            self.reproduce = 0;
-            self.insect.hunger -= PILLBUG_REPRODUCE_COST;
+        let mut will_move = Insect::will_move(&mut self.speed, PILLBUG_SPEED);
+
+        if self.insect.update_reproduce(&mut self.reproduce, PILLBUG_REPRODUCE_TIME, PILLBUG_REPRODUCE_COST) {
             new_bugs.push(self.insect.pos);
         }
 
