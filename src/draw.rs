@@ -128,3 +128,14 @@ pub fn color(faction: Faction) -> Color {
         _ => unimplemented!(),
     }
 }
+
+pub fn name(faction: Faction) -> &'static str {
+    match faction {
+        0 => "UNKNOWN",
+        1 => "BLUE ANTS",
+        2 => "RED ANTS",
+        FACTION_PILLBUG => "PILLBUGS",
+        FACTION_SPIDER => "SPIDERS",
+        _ => unimplemented!(),
+    }
+}

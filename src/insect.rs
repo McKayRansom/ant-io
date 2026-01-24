@@ -93,7 +93,14 @@ pub struct Insect {
 }
 
 impl Insect {
+    pub fn die(&self, map: &mut Map) {
+        let _ = map.free(self.base.pos, (self.base.faction, self.base.id));
+    }
+
     pub fn update(&mut self, map: &mut Map) -> Option<Event> {
+        if self.base.health == 0 {
+            return Some(Event::Death())
+        }
         self.spec.update(&mut self.base, map)
     }
     pub fn player_action(&mut self, map: &mut Map, action: Action) -> Option<Event> {

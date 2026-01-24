@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use macroquad::color::colors;
 use macroquad::prelude::*;
 
-use crate::draw::draw_game;
+use crate::draw::{color, draw_game};
 use crate::insect::ant::{Ant, AntQueen};
 use crate::insect::pillbug::Pillbug;
 use crate::insect::player::InsectPlayer;
 use crate::insect::spider::Spider;
 use crate::insect::{Action, Event, Id, Insect, Interact};
-use crate::map::{Faction, MAP_SIZE, Map};
+use crate::map::{FACTION_PILLBUG, FACTION_SPIDER, Faction, MAP_SIZE, Map};
 // use crate::grid::{DOWN, Grid, LEFT, RIGHT, SQUARES, UP};
 use crate::pos::{Pos, dirs};
 
@@ -53,6 +53,8 @@ pub struct Game {
     // pub spiders: Vec<Spider>,
     pub insects: HashMap<Id, Insect>,
     pub insects_id: Id,
+    pub pops: HashMap<Faction, usize>,
+    pub queens: HashMap<Faction, Id>,
 }
 
 const NEST_POS: Pos = Pos::new(MAP_SIZE - 20, MAP_SIZE - 10);
@@ -62,9 +64,12 @@ const STARTING_PILLBUGS: usize = 250;
 const STARTING_SPIDERS: usize = 50;
 const STARTING_ANTS: usize = 128;
 
+const FACTION_BLUE_ANTS: Faction = 1;
+const FACTION_RED_ANTS: Faction = 2;
+
 impl Game {
     pub fn new() -> Self {
-        let mut map = Map::new();
+        let map = Map::new();
 
         Self {
             // pillbugs: (0..STARTING_PILLBUGS)
@@ -88,6 +93,8 @@ impl Game {
             game_won: true,
             show_scents: 0,
             paused: false,
+            pops: HashMap::new(),
+            queens: HashMap::new(),
         }
     }
 
@@ -101,6 +108,7 @@ impl Game {
 
     pub fn spawn_ant_colony(&mut self, pos: Pos, faction: Faction) {
         let queen = self.spawn_insect(AntQueen::new(pos, faction));
+        self.queens.insert(faction, queen);
         for _ in 0..STARTING_ANTS {
             self.spawn_insect(Ant::new(pos, faction, queen));
         }
@@ -114,8 +122,8 @@ impl Game {
             self.spawn_insect(Spider::new(self.map.rand_pos()));
         }
 
-        self.spawn_ant_colony(NEST_POS, 1);
-        self.spawn_ant_colony(NEST_POS_2, 2);
+        self.spawn_ant_colony(NEST_POS, FACTION_BLUE_ANTS);
+        self.spawn_ant_colony(NEST_POS_2, FACTION_RED_ANTS);
 
         self.player_id = self.spawn_insect(InsectPlayer::new(Spider::new(self.map.rand_pos())));
     }
@@ -222,8 +230,12 @@ impl Game {
         let mut new_bugs: Vec<Box<Insect>> = Vec::new();
         let mut dead_bugs: Vec<Id> = Vec::new();
         let mut interacts: Vec<Interact> = Vec::new();
+        for pop in self.pops.values_mut() {
+            *pop = 0;
+        }
 
         for (id, insect) in self.insects.iter_mut() {
+            *self.pops.entry(insect.base.faction).or_insert(0) += 1;
             match insect.update(&mut self.map) {
                 Some(Event::Interact(pos)) => interacts.push(pos),
                 Some(Event::Rebirth(bug)) => {
@@ -241,7 +253,8 @@ impl Game {
                 dead_bugs.push(self.player_id);
                 // creat new insect for the player
                 // TODO: not a spider???
-                self.player_id = self.spawn_insect(InsectPlayer::new(Spider::new(self.map.rand_pos())));
+                self.player_id =
+                    self.spawn_insect(InsectPlayer::new(Spider::new(self.map.rand_pos())));
             }
             Some(Event::Interact(pos)) => interacts.push(pos),
             Some(Event::Rebirth(bug)) => {
@@ -255,7 +268,9 @@ impl Game {
         }
 
         while let Some(bug) = dead_bugs.pop() {
-            self.insects.remove(&bug);
+            if let Some(insect) = self.insects.remove(&bug) {
+                insect.die(&mut self.map);
+            }
             // could add on_death call here...
         }
 
@@ -299,55 +314,38 @@ impl Game {
         self.map.update_size(self.player_last_pos);
         draw_game(&self);
 
-        // draw_text(
-        //     format!(
-        //         "Colony 0: Pop: {} Food: {}",
-        //         self.ant_colonies[0].workers.len(),
-        //         self.ant_colonies[0].food
-        //     )
-        //     .as_str(),
-        //     10.,
-        //     20.,
-        //     24.,
-        //     color(self.ant_colonies[0].faction),
-        // );
+        let mut new_pops: Vec<(u8, usize)> =
+            self.pops.iter().map(|(key, val)| (*key, *val)).collect();
+        new_pops.sort_by(|a, b| b.1.cmp(&a.1)); // sort largest to smallest
 
-        // draw_text(
-        //     format!(
-        //         "Colony 1: Pop: {} Food: {}",
-        //         self.ant_colonies[1].workers.len(),
-        //         self.ant_colonies[1].food
-        //     )
-        //     .as_str(),
-        //     10.,
-        //     40.,
-        //     24.,
-        //     color(self.ant_colonies[1].faction),
-        // );
+        let mut y: f32 = 20.;
+        for (faction, pop) in &new_pops {
+            let text = if let Some(queen) = self.queens.get(faction) {
+                format!(
+                    "{}: Pop: {} Food: {}",
+                    crate::draw::name(*faction),
+                    pop,
+                    self.insects[queen].base.hunger
+                )
+            } else {
+                format!("{}: {}", crate::draw::name(*faction), pop)
+            };
+            draw_text(text.as_str(), 10., y, 24., color(*faction));
+            y += 20.;
+        }
 
-        // draw_text(
-        //     format!("Pillbugs: {}", self.pillbugs.len()).as_str(),
-        //     10.,
-        //     60.,
-        //     24.,
-        //     PILLBUG_COLOR,
-        // );
-
-        // draw_text(
-        //     format!("Spiders: {}", self.spiders.len()).as_str(),
-        //     10.,
-        //     80.,
-        //     24.,
-        //     SPIDER_COLOR,
-        // );
-
-        // draw_text(
-        //     format!("P Hunger: {}", self.player_id.insect.hunger / 500).as_str(),
-        //     10.,
-        //     100.,
-        //     24.,
-        //     colors::YELLOW,
-        // );
+        draw_text(
+            format!(
+                "P Health: {}, Hunger: {}",
+                self.insects[&self.player_id].base.health,
+                self.insects[&self.player_id].base.hunger
+            )
+            .as_str(),
+            10.,
+            y,
+            24.,
+            colors::YELLOW,
+        );
 
         // if self.game_over {
         //     // clear_background(BLACK);
