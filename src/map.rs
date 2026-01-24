@@ -1,15 +1,13 @@
-use std::{
-    cell::RefCell,
-    rc::{Rc, Weak},
-};
-
 use macroquad::{
     math::{Rect, Vec2},
     prelude::rand,
 };
 use quad_lib::camera::Camera;
 
-use crate::pos::{Pos, dirs};
+use crate::{
+    insect::{Id, ant::ScentGrid},
+    pos::{Pos, dirs},
+};
 
 pub type Faction = u8;
 
@@ -37,9 +35,7 @@ pub enum CellType {
 #[derive(Debug, Default, Clone)]
 pub struct Cell {
     pub m_type: CellType,
-
-    // not so sure about this one fam
-    occupied: Weak<RefCell<Faction>>,
+    occupied: Option<(Faction, Id)>,
 }
 
 impl Cell {
@@ -69,36 +65,48 @@ impl Cell {
     // }
 
     pub fn occupied_faction(&self) -> Faction {
-        Weak::<RefCell<Faction>>::upgrade(&self.occupied)
-            .map(|rc| *rc.borrow())
+        self.occupied
+            .map(|(faction, _id)| faction)
             .unwrap_or(FACTION_NONE)
     }
 
-    pub fn try_occupy(&mut self, faction: Faction) -> Option<Rc<RefCell<Faction>>> {
-        if let Some(rc) = self.occupied.upgrade() {
-            // occupied
-            if *rc.borrow() == faction {
-                Some(rc)
-            } else {
-                // Enemy is here! mark that
-                *rc.borrow_mut() = faction;
-                None
-            }
-        } else {
-            // empty
-            let rc = Rc::new(RefCell::new(faction));
-            self.occupied = Rc::<RefCell<Faction>>::downgrade(&rc);
-            Some(rc)
+    pub fn occupied_id(&self) -> Id {
+        self.occupied
+            .map(|(_faction, id)| id)
+            .unwrap_or(0)
+    }
+
+    pub fn try_occupy(&mut self, faction: Faction, id: Id) -> Result<(), OccupyError> {
+        if self.m_type == CellType::Rock {
+            return Err(OccupyError::Solid);
         }
+        if let Some((my_faction, my_id)) = self.occupied {
+            if my_faction == faction {
+                return Ok(());
+            } else {
+                return Err(OccupyError::Fight(my_id));
+            }
+        }
+        self.occupied = Some((faction, id));
+        Ok(())
+    }
+
+    pub fn free(&mut self, faction: Faction, id: Id) -> Result<(), OccupyError> {
+        if let Some((my_faction, my_id)) = self.occupied {
+            if my_faction == faction && my_id == id {
+                self.occupied = None;
+            }
+        }
+        Ok(())
     }
 }
-
 
 pub struct Map {
     pub occupied: Vec<Vec<Cell>>,
     pub size: Pos,
-
     pub camera: Camera,
+
+    pub scent_grids: Vec<ScentGrid>,
 }
 
 pub struct Sight {
@@ -114,15 +122,18 @@ impl Sight {
 
 pub enum OccupyError {
     Solid,
-    Fight,
+    Fight(Id),
 }
 
 impl Map {
     pub fn new() -> Self {
+        let size = Pos::new(MAP_SIZE, MAP_SIZE);
         let mut map: Map = Self {
             occupied: vec![vec![Cell::default(); MAP_SIZE as usize]; MAP_SIZE as usize],
-            size: Pos::new(MAP_SIZE, MAP_SIZE),
+            size,
             camera: Camera::new(),
+            // TODO: SPARSE??
+            scent_grids: vec![ScentGrid::new(size), ScentGrid::new(size),  ScentGrid::new(size)],
         };
         map.camera.zoom = 0.5;
         for _ in 0..10 {
@@ -182,6 +193,13 @@ impl Map {
         if rand::gen_range(0, FOOD_DROP_ODDS) == 0 {
             self.drop_rand_bunch(crate::map::CellType::Food);
         }
+
+        // OPTIMIZE: only check this every few ticks
+        for scent_grid in &mut self.scent_grids {
+            for cell in scent_grid.grid.iter_mut() {
+                cell.update();
+            }
+        }
     }
 
     pub fn is_valid(&self, pos: Pos) -> bool {
@@ -207,19 +225,35 @@ impl Map {
     pub(crate) fn occupy(
         &mut self,
         next_pos: Pos,
-        faction: Faction,
-    ) -> Result<Rc<RefCell<Faction>>, OccupyError> {
-        let cell = self.get_cell_mut(next_pos).ok_or(OccupyError::Solid)?;
-        if cell.m_type == CellType::Rock {
-            return Err(OccupyError::Solid);
-        }
-        cell.try_occupy(faction).ok_or(OccupyError::Fight)
+        (faction, id): (Faction, Id),
+    ) -> Result<(), OccupyError> {
+        self.get_cell_mut(next_pos)
+            .ok_or(OccupyError::Solid)?
+            .try_occupy(faction, id)
+    }
+
+    pub(crate) fn free(
+        &mut self,
+        next_pos: Pos,
+        (faction, id): (Faction, Id),
+    ) -> Result<(), OccupyError> {
+        self.get_cell_mut(next_pos)
+            .ok_or(OccupyError::Solid)?
+            .free(faction, id)
     }
 
     pub fn sight(&self, pos: Pos) -> Sight {
         self.get_cell(pos)
             .map(|cell| Sight::new(cell.m_type, cell.occupied_faction()))
             .unwrap_or(Sight::new(CellType::Wall, FACTION_NONE))
+    }
+
+    pub fn get_scent_grid(&self, faction: Faction) -> &ScentGrid {
+        self.scent_grids.get(faction as usize).unwrap()
+    }
+
+    pub fn get_scent_grid_mut(&mut self, faction: Faction) -> &mut ScentGrid {
+        self.scent_grids.get_mut(faction as usize).unwrap()
     }
 
     // pub fn occupy(&mut self, pos: Point) -> bool {

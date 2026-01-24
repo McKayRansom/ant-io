@@ -1,16 +1,13 @@
-use std::u8;
 
 use macroquad::prelude::rand;
 
-use crate::insect::{Insect, Perception};
+use crate::insect::{Action, BaseInsect, Event, Hunger, Id, Insect, InsectBehaviour, Interact, Perception};
 use crate::map::{CellType, FACTION_SPIDER, Faction, Map};
 
 use crate::pos::Pos;
 use crate::pos::dirs::invert;
 
 // const
-
-type Food = usize;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Scents {
@@ -35,7 +32,7 @@ impl ScentCell {
         val.saturating_sub(1)
     }
 
-    fn update(&mut self) {
+    pub fn update(&mut self) {
         // self.nest_scent = self.nest_scent.saturating_sub(1);
         self.scents[Scents::Food as usize] = self.scents[Scents::Food as usize].saturating_sub(1);
         self.scents[Scents::Attack as usize] =
@@ -76,82 +73,92 @@ impl ScentGrid {
 // pub type ScentGrid = HashMap<Pos, ScentCell>;
 
 // #[derive(Debug)]
-pub struct AntColony {
-    pub faction: Faction,
-    pub food: Food,
-    pub workers: Vec<Ant>,
-    pub soldiers: Vec<Ant>,
-    pub nest_pos: Pos,
+pub struct AntQueen {
+    // pub faction: Faction,
+    // pub food: Food,
+    // pub workers: Vec<Ant>,
+    // pub soldiers: Vec<Ant>,
+    // pub nest_pos: Pos,
     // the plan is to have the map much bigger, so most of it will be scent-less...
-    pub scents: ScentGrid,
+    // pub scents: ScentGrid,
 }
 
-const STARTING_FOOD: Food = 128;
-const STARTING_ANTS: usize = 128;
+// const STARTING_FOOD: Hunger = 128;
+const ANT_FOOD_HUNGER: Hunger = 255;
 
-impl AntColony {
-    pub fn new(pos: Pos, map: &mut Map, faction: Faction) -> Self {
-        map.get_cell_mut(pos)
-            .unwrap()
-            .set_type(crate::map::CellType::Nest(faction));
+impl AntQueen {
+    pub fn new(pos: Pos, faction: Faction) -> Insect {
+        // seems jank, but leave for now
+        // map.get_cell_mut(pos)
+        //     .unwrap()
+        //     .set_type(crate::map::CellType::Nest(faction));
 
-        Self {
-            faction,
-            food: STARTING_FOOD,
-            workers: vec![Ant::new(pos, faction); STARTING_ANTS],
-            // soldiers: vec![Ant::new(pos, faction); STARTING_ANTS / 4],
-            soldiers: Vec::new(),
-            scents: ScentGrid::new(map.size),
-            nest_pos: pos,
+        Insect {
+            base: BaseInsect::new(pos, faction),
+            spec: Box::new(Self {
+                // faction,
+                // food: STARTING_FOOD,
+                // workers: vec![Ant::new(pos, faction); STARTING_ANTS],
+                // soldiers: vec![Ant::new(pos, faction); STARTING_ANTS / 4],
+                // soldiers: Vec::new(),
+                // scents: ScentGrid::new(map.size),
+                // nest_pos: pos,
+            }),
         }
     }
+}
 
-    pub fn update(&mut self, grid: &mut Map) {
-
-        // OPTIMIZE: only check this every few ticks
-        for cell in self.scents.grid.iter_mut() {
-            cell.update();
-        }
-
-        self.workers
-            .retain_mut(|ant| ant.update(grid, &mut self.scents, &mut self.food, self.faction));
-
-        self.soldiers.retain_mut(|ant| {
-            ant.update_soldier(grid, &mut self.scents, &mut self.food, self.faction)
-        });
-
-        if self.food > (self.workers.len() + self.soldiers.len()) {
+impl InsectBehaviour for AntQueen {
+    fn update(&mut self, base: &mut BaseInsect, _map: &mut Map) -> Option<super::Event> {
+        if base.hunger > ANT_FOOD_HUNGER * 2 {
             // create new ants!
-            self.workers.push(Ant::new(self.nest_pos, self.faction));
             // if rand::rand() % 4 == 0 {
             //     self.soldiers.push(Ant::new(self.nest_pos, self.faction));
             // }
-            self.food -= 1;
+            base.hunger -= ANT_FOOD_HUNGER;
+            return Some(super::Event::Birth(Box::new(Ant::new(
+                base.pos,
+                base.faction,
+                base.id,
+            ))));
         }
+        None
+    }
+
+    fn player_action(
+        &mut self,
+        _base: &mut BaseInsect,
+        _map: &mut Map,
+        _action: super::Action,
+    ) -> Option<super::Event> {
+        todo!()
     }
 }
 
-#[derive(Debug, Clone)]
+// #[derive(Debug, Clone)]
 pub struct Ant {
-    pub insect: Insect,
     pub food: Option<()>,
     nest_scent: u8,
     pub food_scent: u8,
     pub attack_scent: u8,
     pub timeout: u8,
+    pub queen: Id,
 }
 
 pub const ACTIVITY_TIMEOUT: u8 = u8::MAX;
 
 impl Ant {
-    pub fn new(pos: Pos, faction: Faction) -> Self {
-        Self {
-            insect: Insect::new(pos, faction),
-            food: None,
-            food_scent: 0,
-            nest_scent: u8::MAX,
-            attack_scent: 0,
-            timeout: ACTIVITY_TIMEOUT,
+    pub fn new(pos: Pos, faction: Faction, queen: Id) -> Insect {
+        Insect {
+            base: BaseInsect::new(pos, faction),
+            spec: Box::new(Self {
+                food: None,
+                food_scent: 0,
+                nest_scent: u8::MAX,
+                attack_scent: 0,
+                timeout: ACTIVITY_TIMEOUT,
+                queen,
+            }),
         }
     }
 
@@ -164,12 +171,14 @@ impl Ant {
     }
 
     // fn perceive(&self, map: &Map, scents: &ScentGrid, seeking: (Scents, CellType)) -> Perception {
-    // self.insect
+    // base
     // .perception(map, seeking.1, |pos| Self::smell(scents, pos, seeking.0))
     // }
 
-    pub fn update_scents(&mut self, scents: &mut ScentGrid) {
-        let scent_cell = scents.get_mut(self.insect.pos).unwrap();
+    pub fn update_scents(&mut self, base: &BaseInsect, map: &mut Map) {
+
+        let scents = map.get_scent_grid_mut(base.faction);
+        let scent_cell = scents.get_mut(base.pos).unwrap();
 
         if self.food.is_some() {
             let dist_approx = u8::MAX - self.nest_scent;
@@ -196,81 +205,82 @@ impl Ant {
 
     pub fn update_behaviour(
         &mut self,
-        map: &mut Map,
-        food: &mut Food,
-        faction: Faction,
-    ) -> (Scents, CellType) {
+        base: &mut BaseInsect,
+        map: &mut Map
+    ) -> Option<Event> {
         // take food
-        let cell = map
-            .get_cell_mut(self.insect.pos)
-            .expect("Ant in invalid pos");
+        let cell = map.get_cell_mut(base.pos).expect("Ant in invalid pos");
 
-        if cell.is_type(CellType::Nest(faction)) {
+        if cell.occupied_id() == self.queen {
             self.timeout = ACTIVITY_TIMEOUT;
             if self.food.is_some() {
-                *food += 1;
                 self.food = None;
                 self.nest_scent = u8::MAX - 1;
                 self.food_scent = 0;
-                self.insect.dir = invert(self.insect.dir);
+                base.dir = invert(base.dir);
+
+                // TODO: THIS AMONT IS DIFF
+                return Some(Event::Interact(Interact::feed(base.id, self.queen, i8::MAX as u8)))
             }
         }
         // find food!
         else if self.food.is_none() {
             if let Some(food) = cell.take_type(CellType::Food) {
-                if self.insect.hunger < u8::MAX as u16 {
+                if base.hunger < ANT_FOOD_HUNGER as u16 {
                     // eat it for ourselves
-                    self.insect.hunger += u8::MAX as u16;
+                    base.hunger += ANT_FOOD_HUNGER as u16;
                 } else {
                     // take it back to the nest I guess
                     self.food = Some(food);
-                    self.insect.dir = invert(self.insect.dir);
+                    base.dir = invert(base.dir);
                 }
             }
-        } else if self.insect.hunger < u8::MAX as u16 {
+        } else if base.hunger < ANT_FOOD_HUNGER as u16 {
             // eat it for ourselves
-            self.insect.hunger += u8::MAX as u16;
+            base.hunger += ANT_FOOD_HUNGER as u16;
             self.food = None;
         }
 
-        self.timeout = self.timeout.saturating_sub(1);
-
-        if self.food.is_some() || self.timeout == 0 {
-            (Scents::Nest, CellType::Nest(faction))
-        } else {
-            (Scents::Food, CellType::Food)
-        }
+        None
     }
 
-    pub fn update_behaviour_soldier(
-        &mut self,
-        map: &mut Map,
-        _food: &mut Food,
-        faction: Faction,
-    ) -> (Scents, CellType) {
-        // take food
-        let cell = map
-            .get_cell_mut(self.insect.pos)
-            .expect("Ant in invalid pos");
+    // pub fn update_behaviour_soldier(
+    //     &mut self,
+    //     base: &BaseInsect,
+    //     map: &mut Map,
+    //     faction: Faction,
+    // ) -> (Scents, CellType) {
+    //     // take food
+    //     let cell = map.get_cell_mut(base.pos).expect("Ant in invalid pos");
 
-        self.timeout = self.timeout.saturating_sub(1);
+    //     self.timeout = self.timeout.saturating_sub(1);
+    //     if self.timeout == 0 {
+    //         (Scents::Nest, CellType::Nest(faction)) // hmmmmm
+    //     } else {
+    //         (Scents::Attack, CellType::Nest(u8::MAX)) // hmmmmm
+    //     }
 
-        if cell.is_type(CellType::Nest(faction)) {
-            self.timeout = ACTIVITY_TIMEOUT;
-        }
-        if self.timeout == 0 {
-            (Scents::Nest, CellType::Nest(faction)) // hmmmmm
-        } else {
-            (Scents::Attack, CellType::Nest(u8::MAX)) // hmmmmm
-        }
-    }
+    //     if cell.occupied_id() == self.queen {
+    //         self.timeout = ACTIVITY_TIMEOUT;
+    //     }
+
+    // }
 
     pub fn update_movement(
         &mut self,
+        base: &BaseInsect,
         perception: &mut Perception,
         scents: &ScentGrid,
-        seeking: (Scents, CellType),
+        // seeking: (Scents, CellType),
     ) -> Option<Pos> {
+        self.timeout = self.timeout.saturating_sub(1);
+
+        let seeking = if self.food.is_some() || self.timeout == 0 {
+            (Scents::Nest, CellType::Nest(base.faction))
+        } else {
+            (Scents::Food, CellType::Food)
+        };
+
         for percep in perception.iter() {
             if percep.1.cell_type == seeking.1 {
                 // found it, no reason not to go there
@@ -285,7 +295,7 @@ impl Ant {
                 //         .saturating_add(dist_approx)
                 //         .saturating_add(dist_approx / 5)
                 //         .saturating_add(48);
-                    // return Some(self.insect.pos + invert(percep.0 - self.insect.pos));
+                // return Some(base.pos + invert(percep.0 - base.pos));
                 // }
                 // else {
                 // // soldier attack!
@@ -298,7 +308,7 @@ impl Ant {
         // chance to just go randomly
         let val = rand::rand();
         if val < u32::MAX / 4 {
-            return Some(self.insect.move_random());
+            return Some(base.move_random());
         }
 
         // didn't see anything interesting, time to go by scents
@@ -313,12 +323,12 @@ impl Ant {
 
         // no scents, just go randomly
         if total == 0 {
-            return Some(self.insect.move_random());
+            return Some(base.move_random());
         }
 
         // pick a dir based on random chance, but weighted towards the highest scent dir
         // let mut pick = rand::gen_range(0, total);
-        let mut pos: Pos = self.insect.pos;
+        let mut pos: Pos = base.pos;
         let mut max: u8 = 0;
         for val in perception.iter() {
             if max <= val.1.faction {
@@ -329,51 +339,66 @@ impl Ant {
         return Some(pos);
     }
 
-    pub fn update(
-        &mut self,
-        map: &mut Map,
-        scents: &mut ScentGrid,
-        food: &mut Food,
-        faction: Faction,
-    ) -> bool {
+    // fn update_soldier(&mut self, base: &mut BaseInsect, map: &mut Map) -> Option<super::Event> {
         // TEMP
-        // if self.insect.hunger < u8::MAX / 8 && *food > 0 {
+        // if base.hunger < u8::MAX / 8 && *food > 0 {
         //     *food = *food - 1;
-        //     self.insect.hunger = u8::MAX;
+        //     base.hunger = u8::MAX;
         // }
 
-        let seeking = self.update_behaviour(map, food, faction);
-        self.update_scents(scents);
+        // self.update_behaviour_soldier(base, map)?;
 
-        let mut perception = self.insect.perception(map);
-        let next_pos = self.update_movement(&mut perception, scents, seeking);
-        self.insect.update(next_pos, map, faction)
-    }
+        // let scents = map.get_scent_grid_mut(base.faction);
+        // self.update_scents(scents);
 
-    pub fn update_soldier(
-        &mut self,
-        map: &mut Map,
-        scents: &mut ScentGrid,
-        food: &mut Food,
-        faction: Faction,
-    ) -> bool {
+        // let mut perception = base.perception(map);
+        // let scents = map.get_scent_grid(base.faction);
+        // let next_pos = self.update_movement(&base, &mut perception, scents, seeking);
+
+        // if let Some(pos) = next_pos {
+        //     base.try_move(pos, map)
+        // } else {
+        //     None
+        // }
+    // }
+
+    // pub fn has_food(&self) -> bool {
+    //     self.food.is_some()
+    // }
+}
+
+impl InsectBehaviour for Ant {
+    fn update(&mut self, base: &mut BaseInsect, map: &mut Map) -> Option<super::Event> {
         // TEMP
-        // if self.insect.hunger < u8::MAX / 8 && *food > 0 {
+        // if base.hunger < u8::MAX / 8 && *food > 0 {
         //     *food = *food - 1;
-        //     self.insect.hunger = u8::MAX;
+        //     base.hunger = u8::MAX;
         // }
 
-        let seeking = self.update_behaviour_soldier(map, food, faction);
-        self.update_scents(scents);
+        if let Some(action) =  self.update_behaviour(base, map) { 
+            return Some(action);
+        }
 
-        let mut perception = self.insect.perception(map);
-        let next_pos = self.update_movement(&mut perception, scents, seeking);
+        self.update_scents(base, map);
 
-        // TODO: indicate that we have health...
-        self.insect.update(next_pos, map, faction)
+        let mut perception = base.perception(map);
+        // get immutabe so borrow checker is happy...
+        let scents = map.get_scent_grid(base.faction);
+        let next_pos = self.update_movement(base, &mut perception, scents);
+
+        if let Some(pos) = next_pos {
+            base.try_move(pos, map)
+        } else {
+            None
+        }
     }
 
-    pub fn has_food(&self) -> bool {
-        self.food.is_some()
+    fn player_action(
+        &mut self,
+        _base: &mut BaseInsect,
+        _map: &mut Map,
+        _action: Action,
+    ) -> Option<super::Event> {
+        todo!()
     }
 }

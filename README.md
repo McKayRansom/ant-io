@@ -7,6 +7,15 @@ Small insect simulation at Huge scale. Lead your ant/bee/beetles/pillbug populat
  - You control just another bug in the battle for survival
  - Procedurally generated map
 
+## TODO
+ - [ ] New combat system
+ - [ ] Rework birth to events with above, and add eggs
+ - [ ] Add underground layer
+ - [ ] All of UI
+ - [ ] Tileset
+ - [ ] Animations
+ - [ ] 
+
 ## Design
 - Goal: Survive (Unlocks for surviving X amount of time, reaching X pop, etc...)
   - Tutorial goals like: survive to adulthood, reproduce, etc...

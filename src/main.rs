@@ -8,6 +8,7 @@ use ant_io::game::Game;
 async fn main() {
 
     let mut game = Game::new();
+    game.generate();
 
     let mut won = 0;
     let mut lost = 0;

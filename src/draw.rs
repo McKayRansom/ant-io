@@ -5,8 +5,8 @@ use macroquad::{
 
 use crate::{
     game::Game,
-    insect::{ant::{Ant, AntColony, Scents}, spider::Spider},
-    map::{CellType, Faction, Map},
+    insect::ant::{Scents},
+    map::{CellType, FACTION_PILLBUG, FACTION_SPIDER, Faction, Map},
     pos::Pos,
 };
 
@@ -19,21 +19,32 @@ pub fn draw_game(game: &Game) {
     draw_map(&game.map);
 
     if game.show_scents != 0 {
-        draw_scents(&game.ant_colonies[game.show_scents as usize - 1], &game.map);
+        draw_scents( &game.map, game.show_scents);
     }
-    for colony in &game.ant_colonies {
-        draw_colony(colony, &game.map);
+    // for colony in &game.ant_colonies {
+    //     draw_colony(colony, &game.map);
+    // }
+    for (_id, insect) in &game.insects {
+        // let insect = self.insects_idinsect.insect();
+        draw_cell(&game.map, insect.base.pos, color(insect.base.faction));
+        // TODO:
+        // if ant.has_food() {
+        //   raw_cell_small(map, ant.insect.pos, FOOD_COLOR);
+        // }
+        // TODO:
+        //    for ants in &colony.soldiers {
+    //     draw_ant(ants, &map, {
+    //         let mut color = color(colony.faction);
+    //         color.r += 0.2;
+    //         color.g += 0.2;
+    //         color.b += 0.2;
+    //         color
+    //     });
+    // }
     }
 
-    for bug in &game.pillbugs {
-        draw_cell(&game.map, bug.insect.pos, PILLBUG_COLOR);
-    }
-
-    for spider in &game.spiders {
-        draw_spider(spider, &game.map, SPIDER_COLOR);
-    }
-
-    draw_spider(&game.player, &game.map, colors::YELLOW);
+    // TODO:
+    // draw_spider(&game.player, &game.map, colors::YELLOW);
 }
 
 pub fn draw_map(map: &Map) {
@@ -62,9 +73,9 @@ pub fn draw_map(map: &Map) {
     }
 }
 
-pub fn draw_scents(colony: &AntColony, map: &Map) {
+pub fn draw_scents(map: &Map, id: Faction) {
     let mut pos = Pos::new(0, 0);
-    for cell in colony.scents.grid.iter() {
+    for cell in map.get_scent_grid(id as u8).grid.iter() {
         pos.x += 1;
         if pos.x >= map.size.x {
             pos.x = 0;
@@ -90,21 +101,6 @@ pub fn draw_scents(colony: &AntColony, map: &Map) {
     }
 }
 
-pub fn draw_colony(colony: &AntColony, map: &Map) {
-    for ants in &colony.workers {
-        draw_ant(ants, &map, color(colony.faction));
-    }
-    for ants in &colony.soldiers {
-        draw_ant(ants, &map, {
-            let mut color = color(colony.faction);
-            color.r += 0.2;
-            color.g += 0.2;
-            color.b += 0.2;
-            color
-        });
-    }
-}
-
 pub fn draw_cell(map: &Map, pos: Pos, color: Color) {
     let rect = map.screen_rect(pos);
     draw_rectangle(rect.x, rect.y, rect.w, rect.h, color);
@@ -127,20 +123,8 @@ pub fn color(faction: Faction) -> Color {
         0 => colors::WHITE,
         1 => colors::BLUE,
         2 => colors::RED,
+        FACTION_PILLBUG => PILLBUG_COLOR,
+        FACTION_SPIDER => SPIDER_COLOR,
         _ => unimplemented!(),
-    }
-}
-
-pub fn draw_ant(ant: &Ant, map: &Map, color: Color) {
-    draw_cell(map, ant.insect.pos, color);
-    if ant.has_food() {
-        draw_cell_small(map, ant.insect.pos, FOOD_COLOR);
-    }
-}
-
-pub fn draw_spider(spider: &Spider, map: &Map, color: Color) {
-    draw_cell(&map, spider.insect.pos, color);
-    if spider.digest > 0 {
-        draw_cell_small(&map, spider.insect.pos, colors::WHITE);
     }
 }

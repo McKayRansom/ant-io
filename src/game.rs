@@ -1,13 +1,15 @@
-use std::fmt::Display;
+use std::collections::HashMap;
 
 use macroquad::color::colors;
 use macroquad::prelude::*;
 
-use crate::draw::{PILLBUG_COLOR, SPIDER_COLOR, color, draw_game};
-use crate::insect::ant::{Ant, AntColony};
+use crate::draw::draw_game;
+use crate::insect::ant::{Ant, AntQueen};
 use crate::insect::pillbug::Pillbug;
+use crate::insect::player::InsectPlayer;
 use crate::insect::spider::Spider;
-use crate::map::{Faction, Map, FACTION_SPIDER, MAP_SIZE};
+use crate::insect::{Action, Event, Id, Insect, Interact};
+use crate::map::{Faction, MAP_SIZE, Map};
 // use crate::grid::{DOWN, Grid, LEFT, RIGHT, SQUARES, UP};
 use crate::pos::{Pos, dirs};
 
@@ -42,13 +44,15 @@ pub struct Game {
     last_update: f64,
     game_over: bool,
     pub game_won: bool,
-    pub ant_colonies: Vec<AntColony>,
-    pub player: Spider,
+    pub player_id: Id,
+    pub player_last_pos: Pos,
     pub player_dir: Pos,
     pub show_scents: Faction,
     pub paused: bool,
-    pub pillbugs: Vec<Pillbug>,
-    pub spiders: Vec<Spider>,
+    // pub pillbugs: Vec<Pillbug>,
+    // pub spiders: Vec<Spider>,
+    pub insects: HashMap<Id, Insect>,
+    pub insects_id: Id,
 }
 
 const NEST_POS: Pos = Pos::new(MAP_SIZE - 20, MAP_SIZE - 10);
@@ -56,26 +60,27 @@ const NEST_POS_2: Pos = Pos::new(20, 10);
 
 const STARTING_PILLBUGS: usize = 250;
 const STARTING_SPIDERS: usize = 50;
+const STARTING_ANTS: usize = 128;
 
 impl Game {
     pub fn new() -> Self {
         let mut map = Map::new();
 
         Self {
-            ant_colonies: vec![
-                AntColony::new(NEST_POS, &mut map, 1),
-                AntColony::new(NEST_POS_2, &mut map, 2),
-            ],
-            pillbugs: (0..STARTING_PILLBUGS)
-                .into_iter()
-                .map(|_| Pillbug::new(map.rand_pos()))
-                .collect(),
-            spiders: (0..STARTING_SPIDERS)
-                .into_iter()
-                .map(|_| Spider::new(map.rand_pos()))
-                .collect(),
-            player: Spider::new(map.rand_pos()),
+            // pillbugs: (0..STARTING_PILLBUGS)
+            //     .into_iter()
+            //     .map(|_| Pillbug::new(map.rand_pos()))
+            //     .collect(),
+            // spiders: (0..STARTING_SPIDERS)
+            //     .into_iter()
+            //     .map(|_| Spider::new(map.rand_pos()))
+            //     .collect(),
+            // player: Spider::new(map.rand_pos()),
+            insects: HashMap::new(),
+            insects_id: 1,
             player_dir: dirs::NONE,
+            player_id: 0,
+            player_last_pos: dirs::NONE,
             map,
             speed: Speed::SLOW,
             last_update: 0.,
@@ -84,6 +89,35 @@ impl Game {
             show_scents: 0,
             paused: false,
         }
+    }
+
+    pub fn spawn_insect(&mut self, mut insect: Insect) -> Id {
+        let id = self.insects_id;
+        self.insects_id += 1;
+        insect.base.id = id;
+        self.insects.insert(id, insect);
+        id
+    }
+
+    pub fn spawn_ant_colony(&mut self, pos: Pos, faction: Faction) {
+        let queen = self.spawn_insect(AntQueen::new(pos, faction));
+        for _ in 0..STARTING_ANTS {
+            self.spawn_insect(Ant::new(pos, faction, queen));
+        }
+    }
+
+    pub fn generate(&mut self) {
+        for _ in 0..STARTING_PILLBUGS {
+            self.spawn_insect(Pillbug::new(self.map.rand_pos()));
+        }
+        for _ in 0..STARTING_SPIDERS {
+            self.spawn_insect(Spider::new(self.map.rand_pos()));
+        }
+
+        self.spawn_ant_colony(NEST_POS, 1);
+        self.spawn_ant_colony(NEST_POS_2, 2);
+
+        self.player_id = self.spawn_insect(InsectPlayer::new(Spider::new(self.map.rand_pos())));
     }
 
     /// NOTE: will be run more than once per sim tick!! must handle this correctly
@@ -106,12 +140,13 @@ impl Game {
         // } else {
         //     self.player.food_scent = 0;
         // }
-        if is_key_down(KeyCode::X) {
-            self.player.reproduce = u8::MAX;
-            // self.player.insect.hunger = 550;
-        } else {
-            self.player.reproduce = 0;
-        }
+        // TODO
+        // if is_key_down(KeyCode::X) {
+        //     self.player.reproduce = u8::MAX;
+        //     // self.player.insect.hunger = 550;
+        // } else {
+        //     self.player.reproduce = 0;
+        // }
         if is_key_pressed(KeyCode::Key1) {
             if self.show_scents == 1 {
                 self.show_scents = 0;
@@ -142,22 +177,22 @@ impl Game {
         }
     }
 
-    pub fn update_player(&mut self, new_bugs: &mut Vec<Pos>) -> bool {
+    pub fn update_player(&mut self) -> Option<Event> {
+        if let Some(player) = self.insects.get_mut(&self.player_id) {
+            self.player_last_pos = player.base.pos;
+            if self.player_dir != dirs::NONE {
+                return player.player_action(&mut self.map, Action::Move(self.player_dir));
+            }
+        }
 
-        let will_move = self.player.speed == 1;
-        let old_speed = self.player.speed;
-        self.player.speed = 1;
-        let res = self.player.update(&mut self.map, new_bugs);
-        if old_speed == 0 {
-            self.player.speed = 1;
-        } else {
-            self.player.speed = 0
-        }
-        if will_move && self.player_dir != dirs::NONE {
-            res && self.player.insect.update(Some(self.player.insect.pos + self.player_dir), &mut self.map, FACTION_SPIDER)
-        } else {
-            res
-        }
+        None
+
+        // TODO
+        // if is_key_down(KeyCode::X) {
+        //     self.player.reproduce = u8::MAX;
+        //     // self.player.insect.hunger = 550;
+        // } else {
+        //     sel
 
         // let colony = &mut self.ant_colonies[0];
 
@@ -184,30 +219,54 @@ impl Game {
     }
 
     pub fn update_sim(&mut self) {
-        let mut new_bugs: Vec<Pos> = Vec::new();
-        self.spiders
-            .retain_mut(|spider| spider.update(&mut self.map, &mut new_bugs));
+        let mut new_bugs: Vec<Box<Insect>> = Vec::new();
+        let mut dead_bugs: Vec<Id> = Vec::new();
+        let mut interacts: Vec<Interact> = Vec::new();
 
-        if !self.update_player(&mut new_bugs) {
-            // find a new spider for the player
-            self.player = Spider::new(self.map.rand_pos());
+        for (id, insect) in self.insects.iter_mut() {
+            match insect.update(&mut self.map) {
+                Some(Event::Interact(pos)) => interacts.push(pos),
+                Some(Event::Rebirth(bug)) => {
+                    new_bugs.push(bug);
+                    dead_bugs.push(*id);
+                }
+                Some(Event::Birth(bug)) => new_bugs.push(bug),
+                Some(Event::Death()) => dead_bugs.push(*id),
+                None => {}
+            };
         }
 
-        // this is stupid but IDK
-        for pos in new_bugs.iter() {
-            self.spiders.push(Spider::new(*pos));
+        match self.update_player() {
+            Some(Event::Death()) => {
+                dead_bugs.push(self.player_id);
+                // creat new insect for the player
+                // TODO: not a spider???
+                self.player_id = self.spawn_insect(InsectPlayer::new(Spider::new(self.map.rand_pos())));
+            }
+            Some(Event::Interact(pos)) => interacts.push(pos),
+            Some(Event::Rebirth(bug)) => {
+                // new_bugs.push(bug);
+                dead_bugs.push(self.player_id);
+                self.player_id = self.spawn_insect(*bug);
+            }
+            Some(Event::Birth(bug)) => new_bugs.push(bug),
+            // Some(Event::Death()) => dead_bugs.push(),
+            None => {}
         }
 
-        for colony in self.ant_colonies.iter_mut() {
-            colony.update(&mut self.map);
+        while let Some(bug) = dead_bugs.pop() {
+            self.insects.remove(&bug);
+            // could add on_death call here...
         }
 
-        let mut new_bugs: Vec<Pos> = Vec::new();
-        self.pillbugs
-            .retain_mut(|bug| bug.update(&mut self.map, &mut new_bugs));
-        // this is stupid but IDK
-        for pos in new_bugs.iter() {
-            self.pillbugs.push(Pillbug::new(*pos));
+        while let Some(bug) = new_bugs.pop() {
+            self.spawn_insect(*bug);
+        }
+
+        while let Some(interact) = interacts.pop() {
+            if let Some(insect) = self.insects.get_mut(&interact.dst) {
+                insect.interact(interact)
+            }
         }
 
         self.map.update();
@@ -237,58 +296,58 @@ impl Game {
 
         clear_background(colors::BLACK);
 
-        self.map.update_size(self.player.insect.pos);
+        self.map.update_size(self.player_last_pos);
         draw_game(&self);
 
-        draw_text(
-            format!(
-                "Colony 0: Pop: {} Food: {}",
-                self.ant_colonies[0].workers.len(),
-                self.ant_colonies[0].food
-            )
-            .as_str(),
-            10.,
-            20.,
-            24.,
-            color(self.ant_colonies[0].faction),
-        );
+        // draw_text(
+        //     format!(
+        //         "Colony 0: Pop: {} Food: {}",
+        //         self.ant_colonies[0].workers.len(),
+        //         self.ant_colonies[0].food
+        //     )
+        //     .as_str(),
+        //     10.,
+        //     20.,
+        //     24.,
+        //     color(self.ant_colonies[0].faction),
+        // );
 
-        draw_text(
-            format!(
-                "Colony 1: Pop: {} Food: {}",
-                self.ant_colonies[1].workers.len(),
-                self.ant_colonies[1].food
-            )
-            .as_str(),
-            10.,
-            40.,
-            24.,
-            color(self.ant_colonies[1].faction),
-        );
+        // draw_text(
+        //     format!(
+        //         "Colony 1: Pop: {} Food: {}",
+        //         self.ant_colonies[1].workers.len(),
+        //         self.ant_colonies[1].food
+        //     )
+        //     .as_str(),
+        //     10.,
+        //     40.,
+        //     24.,
+        //     color(self.ant_colonies[1].faction),
+        // );
 
-        draw_text(
-            format!("Pillbugs: {}", self.pillbugs.len()).as_str(),
-            10.,
-            60.,
-            24.,
-            PILLBUG_COLOR,
-        );
+        // draw_text(
+        //     format!("Pillbugs: {}", self.pillbugs.len()).as_str(),
+        //     10.,
+        //     60.,
+        //     24.,
+        //     PILLBUG_COLOR,
+        // );
 
-        draw_text(
-            format!("Spiders: {}", self.spiders.len()).as_str(),
-            10.,
-            80.,
-            24.,
-            SPIDER_COLOR,
-        );
+        // draw_text(
+        //     format!("Spiders: {}", self.spiders.len()).as_str(),
+        //     10.,
+        //     80.,
+        //     24.,
+        //     SPIDER_COLOR,
+        // );
 
-        draw_text(
-            format!("P Hunger: {}", self.player.insect.hunger / 500).as_str(),
-            10.,
-            100.,
-            24.,
-            colors::YELLOW,
-        );
+        // draw_text(
+        //     format!("P Hunger: {}", self.player_id.insect.hunger / 500).as_str(),
+        //     10.,
+        //     100.,
+        //     24.,
+        //     colors::YELLOW,
+        // );
 
         // if self.game_over {
         //     // clear_background(BLACK);
@@ -317,86 +376,87 @@ impl Game {
     }
 }
 
-impl Display for Game {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Ant 0: Pop: {} \nAnt 1: Pop: {} \nPillbugs: {}\nSpiders: {}",
-            self.ant_colonies[0].workers.len(),
-            self.ant_colonies[1].workers.len(),
-            self.pillbugs.len(),
-            self.spiders.len()
-        )
-        // writ("Ants[0]: {}", self.ant_colonies[0].workers.len())
-    }
-}
+// impl Display for Game {
+// fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+// write!(
+//     f,
+//     "Ant 0: Pop: {} \nAnt 1: Pop: {} \nPillbugs: {}\nSpiders: {}",
+//     self.ant_colonies[0].workers.len(),
+//     self.ant_colonies[1].workers.len(),
+//     self.pillbugs.len(),
+//     self.spiders.len()
+// )
+// writ("Ants[0]: {}", self.ant_colonies[0].workers.len())
+// write!("GAME")
+// }
+// }
 
 #[cfg(test)]
 mod game_tests {
-    use super::*;
+    // use super::*;
 
-    #[test]
-    fn test_pops() {
-        let mut game: Game = Game::new();
+    // #[test]
+    // fn test_pops() {
+    //     let mut game: Game = Game::new();
 
-        for _ in 0..4 {
-            for i in 0..4096 {
-                game.update_sim();
-                assert!(
-                    !game.pillbugs.is_empty(),
-                    "Pillbugs died out at gen {}\n{}",
-                    i,
-                    game
-                );
-                assert!(
-                    game.pillbugs.len() < 1024,
-                    "Pillbugs overpoped at gen {}\n{}",
-                    i,
-                    game
-                );
+    //     for _ in 0..4 {
+    //         for i in 0..4096 {
+    //             game.update_sim();
+    //             assert!(
+    //                 !game.pillbugs.is_empty(),
+    //                 "Pillbugs died out at gen {}\n{}",
+    //                 i,
+    //                 game
+    //             );
+    //             assert!(
+    //                 game.pillbugs.len() < 1024,
+    //                 "Pillbugs overpoped at gen {}\n{}",
+    //                 i,
+    //                 game
+    //             );
 
-                assert!(
-                    !game.spiders.is_empty(),
-                    "Spiders died out at gen {}\n{}",
-                    i,
-                    game
-                );
-                assert!(
-                    game.spiders.len() < 500,
-                    "Spiders overpoped at gen {}\n{}",
-                    i,
-                    game
-                );
+    //             assert!(
+    //                 !game.spiders.is_empty(),
+    //                 "Spiders died out at gen {}\n{}",
+    //                 i,
+    //                 game
+    //             );
+    //             assert!(
+    //                 game.spiders.len() < 500,
+    //                 "Spiders overpoped at gen {}\n{}",
+    //                 i,
+    //                 game
+    //             );
 
-                assert!(
-                    !game.ant_colonies[0].workers.is_empty(),
-                    "Ants[0] died out at gen {}\n{}",
-                    i,
-                    game
-                );
-                assert!(
-                    game.ant_colonies[0].workers.len() < 500,
-                    "Ants[0] overpoped at gen {}\n{}",
-                    i,
-                    game
-                );
+    //             assert!(
+    //                 !game.ant_colonies[0].workers.is_empty(),
+    //                 "Ants[0] died out at gen {}\n{}",
+    //                 i,
+    //                 game
+    //             );
+    //             assert!(
+    //                 game.ant_colonies[0].workers.len() < 500,
+    //                 "Ants[0] overpoped at gen {}\n{}",
+    //                 i,
+    //                 game
+    //             );
 
-                assert!(
-                    !game.ant_colonies[1].workers.is_empty(),
-                    "Ants[1] died out at gen {}\n{}",
-                    i,
-                    game
-                );
-                assert!(
-                    game.ant_colonies[1].workers.len() < 500,
-                    "Ants[1] overpoped at gen {}\n{}",
-                    i,
-                    game
-                );
-            }
+    //             assert!(
+    //                 !game.ant_colonies[1].workers.is_empty(),
+    //                 "Ants[1] died out at gen {}\n{}",
+    //                 i,
+    //                 game
+    //             );
+    //             assert!(
+    //                 game.ant_colonies[1].workers.len() < 500,
+    //                 "Ants[1] overpoped at gen {}\n{}",
+    //                 i,
+    //                 game
+    //             );
+    //         }
 
-            println!("{}", game);
-        }
-        assert!(false, "PASSED");
-    }
+    //         println!("{}", game);
+    //     }
+    //     assert!(false, "PASSED");
+    // }
 }

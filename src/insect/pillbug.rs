@@ -1,7 +1,7 @@
 use macroquad::prelude::rand;
 
 use crate::{
-    insect::Insect,
+    insect::{Action, BaseInsect, Event, Insect, InsectBehaviour},
     map::{CellType, FACTION_NONE, FACTION_PILLBUG, Map},
     pos::Pos,
 };
@@ -9,7 +9,6 @@ use crate::{
 use super::Hunger;
 
 pub struct Pillbug {
-    pub insect: Insect,
     pub curled: bool,
     pub speed: u8,
     pub reproduce: u8,
@@ -24,36 +23,45 @@ const PILLBUG_FOOD_VALUE: Hunger = u8::MAX as Hunger;
 const PILLBUG_SPEED: u8 = 1;
 
 impl Pillbug {
-    pub fn new(pos: Pos) -> Self {
-        Self {
-            insect: Insect::new(pos, FACTION_PILLBUG),
-            curled: false,
-            speed: 0,
-            reproduce: rand::gen_range(0, PILLBUG_REPRODUCE_TIME / 4),
+    pub fn new(pos: Pos) -> Insect {
+        Insect {
+            base: BaseInsect::new(pos, FACTION_PILLBUG),
+            spec: Box::new(Self {
+                // insect: BaseInsect::new(pos, FACTION_PILLBUG),
+                curled: false,
+                speed: 0,
+                reproduce: rand::gen_range(0, PILLBUG_REPRODUCE_TIME / 4),
+            }),
         }
     }
+}
 
-    pub fn update(&mut self, map: &mut Map, new_bugs: &mut Vec<Pos>) -> bool {
-        let mut will_move = Insect::will_move(&mut self.speed, PILLBUG_SPEED);
+impl InsectBehaviour for Pillbug {
+    fn update(&mut self, base: &mut BaseInsect, map: &mut Map) -> Option<Event> {
+        let mut will_move = BaseInsect::will_move(&mut self.speed, PILLBUG_SPEED);
 
-        if self.insect.update_reproduce(&mut self.reproduce, PILLBUG_REPRODUCE_TIME, PILLBUG_REPRODUCE_COST) {
-            new_bugs.push(self.insect.pos);
+        if base.update_reproduce(
+            &mut self.reproduce,
+            PILLBUG_REPRODUCE_TIME,
+            PILLBUG_REPRODUCE_COST,
+        ) {
+            return Some(Event::Birth(Box::new(Self::new(base.pos))));
         }
 
-        // self.insect.hunger = self.insect.hunger.saturating_sub(1);
+        // base.hunger = base.hunger.saturating_sub(1);
 
         if will_move {
             // eat the food?
-            if self.insect.hunger < PILLBUG_EAT_THRESHOLD {
+            if base.hunger < PILLBUG_EAT_THRESHOLD {
                 if let Some(_food) = map
-                    .get_cell_mut(self.insect.pos)
+                    .get_cell_mut(base.pos)
                     .unwrap()
                     .take_type(CellType::Food)
                 {
-                    self.insect.hunger += PILLBUG_FOOD_VALUE;
+                    base.hunger += PILLBUG_FOOD_VALUE;
                 }
             } else if map
-                .get_cell(self.insect.pos)
+                .get_cell(base.pos)
                 .unwrap()
                 .is_type(CellType::Food)
             {
@@ -62,11 +70,11 @@ impl Pillbug {
             }
         }
 
-        let perception = self.insect.perception(map);
-        let mut best_pos = Some(self.insect.move_random());
+        let perception = base.perception(map);
+        let mut best_pos = Some(base.move_random());
         if self.curled {
             self.curled = false;
-            map.get_cell_mut(self.insect.pos).unwrap().m_type = CellType::Empty;
+            map.get_cell_mut(base.pos).unwrap().m_type = CellType::Empty;
         }
         for percep in &perception {
             if percep.1.faction != FACTION_PILLBUG && percep.1.faction != FACTION_NONE {
@@ -74,7 +82,7 @@ impl Pillbug {
                 self.curled = true;
                 best_pos = None;
                 // mark as rock or something so we can't be eaten
-                // let cell = map.get_cell_mut(self.insect.pos).unwrap();
+                // let cell = map.get_cell_mut(base.pos).unwrap();
                 // if cell.m_type == CellType::Empty {
                 //     cell.m_type = CellType::Rock;
                 // }
@@ -87,10 +95,15 @@ impl Pillbug {
             }
         }
 
-        self.insect.update(
-            if will_move { best_pos } else { None },
-            map,
-            FACTION_PILLBUG,
-        ) // || self.curled
+        if will_move && best_pos.is_some() {
+            base.try_move(best_pos.unwrap(), map) // || self.curled
+        } else {
+            None
+        }
     }
+    
+    fn player_action(&mut self, _base: &mut BaseInsect, _map: &mut Map, _action: Action) -> Option<Event> {
+        todo!()
+    }
+
 }
