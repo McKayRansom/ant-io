@@ -102,7 +102,9 @@ impl Game {
         let id = self.insects_id;
         self.insects_id += 1;
         insect.base.id = id;
+        let _ = self.map.occupy(insect.base.pos, (insect.base.faction, id));
         self.insects.insert(id, insect);
+        // oofarinos
         id
     }
 
@@ -149,12 +151,7 @@ impl Game {
         //     self.player.food_scent = 0;
         // }
         // TODO
-        // if is_key_down(KeyCode::X) {
-        //     self.player.reproduce = u8::MAX;
-        //     // self.player.insect.hunger = 550;
-        // } else {
-        //     self.player.reproduce = 0;
-        // }
+
         if is_key_pressed(KeyCode::Key1) {
             if self.show_scents == 1 {
                 self.show_scents = 0;
@@ -187,6 +184,15 @@ impl Game {
 
     pub fn update_player(&mut self) -> Option<Event> {
         if let Some(player) = self.insects.get_mut(&self.player_id) {
+            if is_key_down(KeyCode::X) {
+                //     self.player.reproduce = u8::MAX;
+                //     // self.player.insect.hunger = 550;
+                // } else {
+                //     self.player.reproduce = 0;
+                if let Some(action) = player.player_action(&mut self.map, Action::ActionA) {
+                    return Some(action);
+                }
+            }
             self.player_last_pos = player.base.pos;
             if self.player_dir != dirs::NONE {
                 return player.player_action(&mut self.map, Action::Move(self.player_dir));
@@ -253,8 +259,6 @@ impl Game {
                 dead_bugs.push(self.player_id);
                 // creat new insect for the player
                 // TODO: not a spider???
-                self.player_id =
-                    self.spawn_insect(InsectPlayer::new(Spider::new(self.map.rand_pos())));
             }
             Some(Event::Interact(pos)) => interacts.push(pos),
             Some(Event::Rebirth(bug)) => {
@@ -282,6 +286,10 @@ impl Game {
             if let Some(insect) = self.insects.get_mut(&interact.dst) {
                 insect.interact(interact)
             }
+        }
+
+        if !self.insects.contains_key(&self.player_id) {
+            self.player_id = self.spawn_insect(InsectPlayer::new(Spider::new(self.map.rand_pos())));
         }
 
         self.map.update();
@@ -334,18 +342,19 @@ impl Game {
             y += 20.;
         }
 
-        draw_text(
-            format!(
-                "P Health: {}, Hunger: {}",
-                self.insects[&self.player_id].base.health,
-                self.insects[&self.player_id].base.hunger
-            )
-            .as_str(),
-            10.,
-            y,
-            24.,
-            colors::YELLOW,
-        );
+        if let Some(player) = self.insects.get(&self.player_id) {
+            draw_text(
+                format!(
+                    "P Health: {}, Hunger: {}",
+                    player.base.health, player.base.hunger
+                )
+                .as_str(),
+                10.,
+                y,
+                24.,
+                colors::YELLOW,
+            );
+        }
 
         // if self.game_over {
         //     // clear_background(BLACK);

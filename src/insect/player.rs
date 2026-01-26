@@ -1,4 +1,4 @@
-use crate::insect::{Insect, InsectBehaviour};
+use crate::{insect::{Insect, InsectBehaviour}, map::CellType};
 
 pub struct InsectPlayer {
     sub_insect: Box<dyn InsectBehaviour>,
@@ -18,10 +18,20 @@ impl InsectPlayer {
 impl InsectBehaviour for InsectPlayer {
     fn update(
         &mut self,
-        _base: &mut super::BaseInsect,
-        _map: &mut crate::map::Map,
+        base: &mut super::BaseInsect,
+        map: &mut crate::map::Map,
     ) -> Option<super::Event> {
         // Do nothing, because we want the player to do stuff...
+
+        if base.hunger < 512 {
+            if let Some(_food) = map
+                .get_cell_mut(base.pos)
+                .unwrap()
+                .take_type(CellType::Food)
+            {
+                base.hunger += 255;
+            }
+        }
         None
     }
 

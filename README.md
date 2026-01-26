@@ -7,6 +7,21 @@ Small insect simulation at Huge scale. Lead your ant/bee/beetles/pillbug populat
  - You control just another bug in the battle for survival
  - Procedurally generated map
 
+## Interesting things to do!!!
+ - Enimies: Big bettles, centipedes, hordes, etc...
+ - Weather: Rain, Snow, winter, summer, etc...
+ - Interactions: Dig down, caves and stuff down there
+   - Cave egosystem!! with insects down there eating stuff
+   - Big scary insects too (depends on how deep you go?)
+   - Dirt falls down eventually?
+   - Water can flood stuff?
+   - Caves naturally formed by insects moving around
+ - Climb up trees, ecosystem up there!!!
+   - Aphids eating tree
+   - stuff eating fruit
+   - stuff eating stuff eating fruit
+   - safe from larger carnivores that can't climb
+
 ## TODO
  - [ ] New combat system
  - [ ] Rework birth to events with above, and add eggs

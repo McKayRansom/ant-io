@@ -2,7 +2,7 @@ use macroquad::prelude::rand;
 
 use crate::{
     insect::{Action, BaseInsect, Event, Insect, InsectBehaviour},
-    map::{FACTION_NONE, FACTION_SPIDER, Map},
+    map::{CellType, FACTION_NONE, FACTION_SPIDER, Map},
     pos::Pos,
 };
 
@@ -12,7 +12,7 @@ pub struct Spider {
     // pub curled: bool,
     pub speed: u8,
     pub reproduce: u8,
-    pub digest: u8,
+    // pub digest: u8,
 }
 
 const SPIDER_REPRODUCE_TIME: u8 = 250;
@@ -22,7 +22,7 @@ const SPIDER_REPRODUCE_THRESHOLD: Hunger = 512;
 const SPIDER_EAT_VAL: Hunger = 255;
 
 // ANTS ONLY FOR NOW
-const DIGEST_TIME: u8 = 32;
+// const DIGEST_TIME: u8 = 32;
 
 const SPIDER_SPEED: u8 = 1;
 
@@ -34,7 +34,7 @@ impl Spider {
                 // curled: false,
                 speed: 0,
                 reproduce: rand::gen_range(0, u8::MAX / 4),
-                digest: 0,
+                // digest: 0,
             }),
         }
     }
@@ -42,41 +42,58 @@ impl Spider {
 
 impl InsectBehaviour for Spider {
     fn update(&mut self, base: &mut BaseInsect, map: &mut Map) -> Option<Event> {
+
+        let mut fake_repro = SPIDER_REPRODUCE_TIME;
         if base.update_reproduce(
-            &mut self.reproduce,
+            &mut fake_repro,
             SPIDER_REPRODUCE_TIME,
             SPIDER_REPRODUCE_COST,
         ) {
             return Some(Event::Birth(Box::new(Self::new(base.pos))));
         }
 
+        if base.hunger < SPIDER_REPRODUCE_COST {
+            if let Some(_food) = map
+                .get_cell_mut(base.pos)
+                .unwrap()
+                .take_type(CellType::Food)
+            {
+                base.hunger += SPIDER_EAT_VAL;
+            }
+        }
+
         // oof
-        self.digest = self.digest.saturating_sub(1);
+        // self.digest = self.digest.saturating_sub(1);
 
         let perception = base.perception(map);
-        let mut best_pos = Some(base.move_random());
+        let mut enemy_pos = None;
+        let mut food_pos = None;
         for percep in &perception {
             // if percep.1.cell_type == CellType::Empty // temp fix to not eat hiding pillbugs (rocks)
             // && (self.digest == 0 || percep.1.faction == FACTION_PILLBUG) // always eat pillbugs, they be pestin
             // only eat pillbugs (temp)
-            if self.digest == 0
-                && (percep.1.faction != FACTION_SPIDER && percep.1.faction != FACTION_NONE)
+            if percep.1.faction != FACTION_SPIDER && percep.1.faction != FACTION_NONE
             // || percep.1.faction == FACTION_PILLBUG
             // if self.digest == 0 && (percep.1.faction == FACTION_PILLBUG)
             // if percep.1.faction == FACTION_PILLBUG
             {
                 // Eat or something IDK, we are still vulerable from behind, TBD if this is OP
                 // Attack the thing!
-                best_pos = Some(percep.0); // don't move into pos and die
+                enemy_pos = Some(percep.0); // don't move into pos and die
                 // we ate something! Horray!
                 // base.hunger = base.hunger.saturating_add(SPIDER_EAT_VAL);
-                self.digest = DIGEST_TIME;
+                // self.digest = DIGEST_TIME;
                 break;
+            }
+            if percep.1.cell_type == CellType::Food {
+                food_pos = Some(percep.0);
             }
         }
 
-        if BaseInsect::will_move(&mut self.speed, SPIDER_SPEED) && best_pos.is_some() {
-            base.try_move(best_pos.unwrap(), map)
+        if BaseInsect::will_move(&mut self.speed, SPIDER_SPEED)
+            && (enemy_pos.is_some() || food_pos.is_some())
+        {
+            base.try_move(enemy_pos.unwrap_or_else(|| food_pos.unwrap()), map)
         } else {
             None
         }
@@ -90,8 +107,10 @@ impl InsectBehaviour for Spider {
     ) -> Option<Event> {
         match action {
             Action::ActionA => {
+
+                let mut fake_repro = SPIDER_REPRODUCE_TIME;
                 if base.update_reproduce(
-                    &mut self.reproduce,
+                    &mut fake_repro,
                     SPIDER_REPRODUCE_TIME,
                     SPIDER_REPRODUCE_COST,
                 ) {

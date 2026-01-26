@@ -95,6 +95,12 @@ pub struct Insect {
 impl Insect {
     pub fn die(&self, map: &mut Map) {
         let _ = map.free(self.base.pos, (self.base.faction, self.base.id));
+        // what if we dropped some food?
+        if let Some(cell) = map.get_cell_mut(self.base.pos) {
+            if cell.is_type(crate::map::CellType::Empty) {
+                cell.set_type(crate::map::CellType::Food);
+            }
+        }
     }
 
     pub fn update(&mut self, map: &mut Map) -> Option<Event> {
