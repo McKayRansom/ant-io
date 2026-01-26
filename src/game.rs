@@ -5,11 +5,12 @@ use macroquad::prelude::*;
 
 use crate::draw::{color, draw_game};
 use crate::insect::ant::{Ant, AntQueen};
+use crate::insect::centipede::Centipede;
 use crate::insect::pillbug::Pillbug;
 use crate::insect::player::InsectPlayer;
 use crate::insect::spider::Spider;
 use crate::insect::{Action, Event, Id, Insect, Interact};
-use crate::map::{FACTION_PILLBUG, FACTION_SPIDER, Faction, MAP_SIZE, Map};
+use crate::map::{FACTION_CENTIPEDE, FACTION_SPIDER, Faction, MAP_SIZE, Map};
 // use crate::grid::{DOWN, Grid, LEFT, RIGHT, SQUARES, UP};
 use crate::pos::{Pos, dirs};
 
@@ -47,6 +48,7 @@ pub struct Game {
     pub player_id: Id,
     pub player_last_pos: Pos,
     pub player_dir: Pos,
+    pub player_faction: Faction,
     pub show_scents: Faction,
     pub paused: bool,
     // pub pillbugs: Vec<Pillbug>,
@@ -86,6 +88,7 @@ impl Game {
             player_dir: dirs::NONE,
             player_id: 0,
             player_last_pos: dirs::NONE,
+            player_faction: FACTION_CENTIPEDE,
             map,
             speed: Speed::SLOW,
             last_update: 0.,
@@ -123,11 +126,15 @@ impl Game {
         for _ in 0..STARTING_SPIDERS {
             self.spawn_insect(Spider::new(self.map.rand_pos()));
         }
+        for _ in 0..10 {
+            self.spawn_insect(Centipede::new(self.map.rand_pos()));
+        }
 
         self.spawn_ant_colony(NEST_POS, FACTION_BLUE_ANTS);
         self.spawn_ant_colony(NEST_POS_2, FACTION_RED_ANTS);
 
-        self.player_id = self.spawn_insect(InsectPlayer::new(Spider::new(self.map.rand_pos())));
+        self.spawn_player();
+        // self.player_id = self.spawn_insect(InsectPlayer::new(Spider::new(self.map.rand_pos())));
     }
 
     /// NOTE: will be run more than once per sim tick!! must handle this correctly
@@ -289,7 +296,7 @@ impl Game {
         }
 
         if !self.insects.contains_key(&self.player_id) {
-            self.player_id = self.spawn_insect(InsectPlayer::new(Spider::new(self.map.rand_pos())));
+            self.spawn_player();
         }
 
         self.map.update();
@@ -380,6 +387,20 @@ impl Game {
         //     }
         // }
         false
+    }
+
+    fn spawn_player(&mut self) {
+        if let Some((id, _insect)) = self
+            .insects
+            .iter()
+            .find(|(_id, insect)| insect.base.faction == self.player_faction)
+        {
+            let id = *id;
+            let insect = self.insects.remove(&id).unwrap();
+            let new_insect = InsectPlayer::new(insect);
+            self.player_id = new_insect.base.id;
+            self.insects.insert(id, new_insect);
+        }
     }
 }
 

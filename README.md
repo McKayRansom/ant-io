@@ -82,6 +82,15 @@ Needs some kind of basic combat system
 - How to manage difficulty with so many random actions
 
 ## Ideas
+- Drop grid-only movement (allow free movement), wouldn't be as hard as you might think, pheremones, etc... could still be on the grid
+  - If ai still follows grid, might not be that hard to code
+  - Potentially more computation, depends on how it is done vs faked
+  - could be cool-looking, like ant-farm
+  - ants will do better due to less space to explore...
+- Side-view instead of top-down (explore depths/trees more), might look better as pixel-art with CRT shaders a. la. animal well... IMO
+  - Add jumping for more fun movement
+  - makes height easier to convey...
+  - makes sense if we really explore height and depth, otherwise it would be dumb
 
  - Creature creator like SPORE, but with real costs to things (wings have higher energy use, eyes have higher energy use and longer growth time, etc...)
   - Tailor your creature to a specific niche

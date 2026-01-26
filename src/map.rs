@@ -13,8 +13,10 @@ pub type Faction = u8;
 
 pub const FACTION_NONE: u8 = 0;
 
+// pub const FACTION_PLAYER: u8
 pub const FACTION_PILLBUG: u8 = u8::MAX - 1;
 pub const FACTION_SPIDER: u8 = u8::MAX - 2;
+pub const FACTION_CENTIPEDE: u8 = u8::MAX - 3;
 
 pub const MAP_SIZE: i16 = 256;
 

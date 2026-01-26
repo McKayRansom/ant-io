@@ -1,4 +1,10 @@
-use crate::{insect::{Insect, InsectBehaviour}, map::CellType};
+use macroquad::color::colors;
+
+use crate::{
+    draw::draw_cell,
+    insect::{Insect, InsectBehaviour},
+    map::CellType,
+};
 
 pub struct InsectPlayer {
     sub_insect: Box<dyn InsectBehaviour>,
@@ -45,11 +51,19 @@ impl InsectBehaviour for InsectPlayer {
             super::Action::Move(pos) => {
                 // WHAAAAA
                 // if BaseInsect::will_move(&mut self.speed, max_speed)
-                base.try_move(base.pos + pos, map)
+                if let Some(event) = base.try_move(base.pos + pos, map) {
+                    return Some(event);
+                }
             }
-            _ => {
-                self.sub_insect.player_action(base, map, action)
-            }
+            _ => {},
         }
+        self.sub_insect.player_action(base, map, action)
+    }
+
+    fn draw(&self, base: &super::BaseInsect, map: &crate::map::Map) {
+        draw_cell(map, base.pos, colors::WHITE);
+        // change color???
+        self.sub_insect.draw(base, map);
+        // draw_
     }
 }

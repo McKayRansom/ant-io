@@ -1,7 +1,8 @@
 
 use macroquad::prelude::rand;
 
-use crate::insect::{Action, BaseInsect, Event, Hunger, Id, Insect, InsectBehaviour, Interact, Perception};
+use crate::draw::{FOOD_COLOR, draw_cell_small};
+use crate::insect::{Action, BaseInsect, Event, Hunger, Id, Insect, InsectBehaviour, InsectInfo, Interact, Perception};
 use crate::map::{CellType, FACTION_SPIDER, Faction, Map};
 
 use crate::pos::Pos;
@@ -85,6 +86,11 @@ pub struct AntQueen {
 
 // const STARTING_FOOD: Hunger = 128;
 const ANT_FOOD_HUNGER: Hunger = 255;
+const ANT_QUEEN_INFO: InsectInfo = InsectInfo {
+    max_health: 10,
+    max_speed: 3,
+    damage: 1,
+};
 
 impl AntQueen {
     pub fn new(pos: Pos, faction: Faction) -> Insect {
@@ -94,7 +100,7 @@ impl AntQueen {
         //     .set_type(crate::map::CellType::Nest(faction));
 
         Insect {
-            base: BaseInsect::new(pos, faction),
+            base: BaseInsect::new(pos, faction, &ANT_QUEEN_INFO),
             spec: Box::new(Self {
                 // faction,
                 // food: STARTING_FOOD,
@@ -133,6 +139,10 @@ impl InsectBehaviour for AntQueen {
     ) -> Option<super::Event> {
         todo!()
     }
+    
+    fn draw(&self, base: &BaseInsect, map: &Map) {
+        base.draw(map);
+    }
 }
 
 // #[derive(Debug, Clone)]
@@ -147,10 +157,16 @@ pub struct Ant {
 
 pub const ACTIVITY_TIMEOUT: u8 = u8::MAX;
 
+const ANT_INFO: InsectInfo = InsectInfo {
+    max_health: 2,
+    max_speed: 0,
+    damage: 2,
+};
+
 impl Ant {
     pub fn new(pos: Pos, faction: Faction, queen: Id) -> Insect {
         Insect {
-            base: BaseInsect::new(pos, faction),
+            base: BaseInsect::new(pos, faction, &ANT_INFO),
             spec: Box::new(Self {
                 food: None,
                 food_scent: 0,
@@ -400,5 +416,12 @@ impl InsectBehaviour for Ant {
         _action: Action,
     ) -> Option<super::Event> {
         todo!()
+    }
+    
+    fn draw(&self, base: &BaseInsect, map: &Map) {
+        base.draw(map);
+        if self.food.is_some() {
+            draw_cell_small(map, base.pos, FOOD_COLOR);
+        }
     }
 }

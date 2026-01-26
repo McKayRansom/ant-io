@@ -5,12 +5,12 @@ use macroquad::{
 
 use crate::{
     game::Game,
-    insect::ant::{Scents},
-    map::{CellType, FACTION_PILLBUG, FACTION_SPIDER, Faction, Map},
+    insect::ant::Scents,
+    map::{CellType, FACTION_CENTIPEDE, FACTION_PILLBUG, FACTION_SPIDER, Faction, Map},
     pos::Pos,
 };
 
-const FOOD_COLOR: Color = colors::GREEN;
+pub const FOOD_COLOR: Color = colors::GREEN;
 
 pub const PILLBUG_COLOR: Color = colors::PINK;
 pub const SPIDER_COLOR: Color = colors::ORANGE;
@@ -26,13 +26,7 @@ pub fn draw_game(game: &Game) {
     // }
     for (_id, insect) in &game.insects {
         // let insect = self.insects_idinsect.insect();
-        draw_cell(&game.map, insect.base.pos, color(insect.base.faction));
-        // TODO:
-        // if ant.has_food() {
-        //   raw_cell_small(map, ant.insect.pos, FOOD_COLOR);
-        // }
-        // TODO:
-        //    for ants in &colony.soldiers {
+        insect.spec.draw(&insect.base, &game.map);
     //     draw_ant(ants, &map, {
     //         let mut color = color(colony.faction);
     //         color.r += 0.2;
@@ -42,9 +36,6 @@ pub fn draw_game(game: &Game) {
     //     });
     // }
     }
-
-    // TODO:
-    // draw_spider(&game.player, &game.map, colors::YELLOW);
 }
 
 pub fn draw_map(map: &Map) {
@@ -106,14 +97,26 @@ pub fn draw_cell(map: &Map, pos: Pos, color: Color) {
     draw_rectangle(rect.x, rect.y, rect.w, rect.h, color);
 }
 
+pub fn draw_cell_medium(map: &Map, pos: Pos, color: Color) {
+    let rect = map.screen_rect(pos);
+    let margin = rect.w / 8.;
+    draw_rectangle(
+        rect.x + margin,
+        rect.y + margin,
+        rect.w - margin * 2.,
+        rect.h - margin * 2.,
+        color,
+    );
+}
+
 pub fn draw_cell_small(map: &Map, pos: Pos, color: Color) {
     let rect = map.screen_rect(pos);
     let margin = rect.w / 4.;
     draw_rectangle(
         rect.x + margin,
         rect.y + margin,
-        rect.w - margin / 2.,
-        rect.h - margin / 2.,
+        rect.w - margin * 2.,
+        rect.h - margin * 2.,
         color,
     );
 }
@@ -125,7 +128,8 @@ pub fn color(faction: Faction) -> Color {
         2 => colors::RED,
         FACTION_PILLBUG => PILLBUG_COLOR,
         FACTION_SPIDER => SPIDER_COLOR,
-        _ => unimplemented!(),
+        FACTION_CENTIPEDE => colors::PURPLE,
+        _ => unimplemented!("Faction: {}", faction),
     }
 }
 
@@ -136,6 +140,7 @@ pub fn name(faction: Faction) -> &'static str {
         2 => "RED ANTS",
         FACTION_PILLBUG => "PILLBUGS",
         FACTION_SPIDER => "SPIDERS",
-        _ => unimplemented!(),
+        FACTION_CENTIPEDE => "CENTIPEDE",
+        _ => unimplemented!("Faction: {}", faction),
     }
 }

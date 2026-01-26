@@ -1,8 +1,7 @@
-use macroquad::prelude::rand;
-
 use crate::{
-    insect::{Action, BaseInsect, Event, Insect, InsectBehaviour},
-    map::{CellType, FACTION_NONE, FACTION_PILLBUG, Map},
+    draw::{color, draw_cell_small},
+    insect::{Action, BaseInsect, Event, Insect, InsectBehaviour, InsectInfo},
+    map::{FACTION_PILLBUG, Map},
     pos::Pos,
 };
 
@@ -10,100 +9,75 @@ use super::Hunger;
 
 pub struct Pillbug {
     pub curled: bool,
-    pub speed: u8,
-    pub reproduce: u8,
 }
 
-const PILLBUG_REPRODUCE_TIME: u8 = 128;
 const PILLBUG_REPRODUCE_COST: Hunger = u8::MAX as Hunger;
-
 const PILLBUG_EAT_THRESHOLD: Hunger = u8::MAX as Hunger * 2;
 const PILLBUG_FOOD_VALUE: Hunger = u8::MAX as Hunger;
-
 const PILLBUG_SPEED: u8 = 1;
+const PILLBUG_CURL_TIME: u8 = 10;
+
+const PILLBUG_INFO: InsectInfo = InsectInfo {
+    max_health: 2,
+    max_speed: 2,
+    damage: 1,
+};
 
 impl Pillbug {
     pub fn new(pos: Pos) -> Insect {
         Insect {
-            base: BaseInsect::new(pos, FACTION_PILLBUG),
-            spec: Box::new(Self {
-                // insect: BaseInsect::new(pos, FACTION_PILLBUG),
-                curled: false,
-                speed: 0,
-                reproduce: rand::gen_range(0, PILLBUG_REPRODUCE_TIME / 4),
-            }),
+            base: BaseInsect::new(pos, FACTION_PILLBUG, &PILLBUG_INFO),
+            spec: Box::new(Self { curled: false }),
         }
     }
 }
 
 impl InsectBehaviour for Pillbug {
     fn update(&mut self, base: &mut BaseInsect, map: &mut Map) -> Option<Event> {
-        let mut will_move = BaseInsect::will_move(&mut self.speed, PILLBUG_SPEED);
-
-        if base.update_reproduce(
-            &mut self.reproduce,
-            PILLBUG_REPRODUCE_TIME,
-            PILLBUG_REPRODUCE_COST,
-        ) {
-            return Some(Event::Birth(Box::new(Self::new(base.pos))));
-        }
-
-        // base.hunger = base.hunger.saturating_sub(1);
-
-        if will_move {
-            // eat the food?
-            if base.hunger < PILLBUG_EAT_THRESHOLD {
-                if let Some(_food) = map
-                    .get_cell_mut(base.pos)
-                    .unwrap()
-                    .take_type(CellType::Food)
-                {
-                    base.hunger += PILLBUG_FOOD_VALUE;
-                }
-            } else if map
-                .get_cell(base.pos)
-                .unwrap()
-                .is_type(CellType::Food)
-            {
-                // no point in moving lol, stay on the food!
-                will_move = false;
-            }
-        }
-
-        let perception = base.perception(map);
-        let mut best_pos = Some(base.move_random());
         if self.curled {
             self.curled = false;
-            map.get_cell_mut(base.pos).unwrap().m_type = CellType::Empty;
+            let _ = map.occupy(base.pos, (base.faction, base.id));
+            return None;
         }
-        for percep in &perception {
-            if percep.1.faction != FACTION_PILLBUG && percep.1.faction != FACTION_NONE {
-                // scary!
+
+        let best_pos = match base.seek_omnivore(map) {
+            super::Seek::Food(pos) => Some(pos),
+            super::Seek::Enemy(_pos) => {
+                // curl up and hide
                 self.curled = true;
-                best_pos = None;
-                // mark as rock or something so we can't be eaten
-                // let cell = map.get_cell_mut(base.pos).unwrap();
-                // if cell.m_type == CellType::Empty {
-                //     cell.m_type = CellType::Rock;
-                // }
+                let _ = map.free(base.pos, (base.faction, base.id));
+                base.speed = PILLBUG_CURL_TIME;
+                return None;
+            }
+            super::Seek::Nothing => None,
+        };
 
-                break;
-            }
-            if percep.1.cell_type == CellType::Food {
-                // food!
-                best_pos = Some(percep.0);
-            }
+        // only try and do these if we are "safe"
+        if base.update_reproduce(PILLBUG_REPRODUCE_COST) {
+            return Some(Event::Birth(Box::new(Self::new(base.pos))));
+        }
+        if base.hunger < PILLBUG_EAT_THRESHOLD && base.try_eat(map) {
+            base.hunger += PILLBUG_FOOD_VALUE;
+            return None;
         }
 
-        if will_move && best_pos.is_some() {
-            base.try_move(best_pos.unwrap(), map) // || self.curled
-        } else {
-            None
-        }
+        base.try_move(best_pos.unwrap_or_else(|| base.move_random()), map)
     }
-    
-    fn player_action(&mut self, _base: &mut BaseInsect, _map: &mut Map, _action: Action) -> Option<Event> {
+
+    fn player_action(
+        &mut self,
+        _base: &mut BaseInsect,
+        _map: &mut Map,
+        _action: Action,
+    ) -> Option<Event> {
         todo!()
     }
 
+    fn draw(&self, base: &BaseInsect, map: &Map) {
+        if self.curled {
+            draw_cell_small(map, base.pos, color(base.faction));
+        } else {
+            base.draw(map);
+        }
+    }
 }
