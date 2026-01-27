@@ -153,7 +153,7 @@ impl BaseInsect {
             health: info.max_health,
             faction,
             id: 0,
-            speed: rand::gen_range(0, info.max_speed),
+            speed: rand::gen_range(0, info.max_speed + 1),
             info,
         }
     }
@@ -254,7 +254,13 @@ impl BaseInsect {
                 self.pos = next_pos;
                 // self.occupy = occupy;
             }
-            Err(OccupyError::Solid) => self.dir = invert(self.dir),
+            Err(OccupyError::Mineable) => {
+                map.get_cell_mut(next_pos).unwrap().set_type(CellType::Tunnel);
+                let _ = map.free(self.pos, (self.faction, self.id));
+                self.dir = next_pos - self.pos;
+                self.pos = next_pos;
+            },
+            Err(OccupyError::Solid) => self.dir = rotate_right(self.dir),
             Err(OccupyError::Fight(id)) => {
                 // TODO: REAL FIGHTS
                 // map.occupy() should have marked opponent as occupied, so they should die too

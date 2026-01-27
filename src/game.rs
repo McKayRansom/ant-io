@@ -62,16 +62,16 @@ pub struct Game {
 const NEST_POS: Pos = Pos::new(MAP_SIZE - 20, MAP_SIZE - 10);
 const NEST_POS_2: Pos = Pos::new(20, 10);
 
-const STARTING_PILLBUGS: usize = 250;
-const STARTING_SPIDERS: usize = 50;
-const STARTING_ANTS: usize = 128;
+const STARTING_PILLBUGS: usize = 50;
+const STARTING_SPIDERS: usize = 10;
+const STARTING_ANTS: usize = 30;
 
 const FACTION_BLUE_ANTS: Faction = 1;
 const FACTION_RED_ANTS: Faction = 2;
 
 impl Game {
     pub fn new() -> Self {
-        let map = Map::new();
+        let map = Map::new(Pos::new(MAP_SIZE, MAP_SIZE));
 
         Self {
             // pillbugs: (0..STARTING_PILLBUGS)
@@ -88,7 +88,7 @@ impl Game {
             player_dir: dirs::NONE,
             player_id: 0,
             player_last_pos: dirs::NONE,
-            player_faction: FACTION_CENTIPEDE,
+            player_faction: FACTION_SPIDER,
             map,
             speed: Speed::SLOW,
             last_update: 0.,
@@ -120,18 +120,19 @@ impl Game {
     }
 
     pub fn generate(&mut self) {
+        self.spawn_ant_colony(self.map.surface_pos(NEST_POS), FACTION_BLUE_ANTS);
+        self.spawn_ant_colony(self.map.surface_pos(NEST_POS_2), FACTION_RED_ANTS);
+
+
         for _ in 0..STARTING_PILLBUGS {
-            self.spawn_insect(Pillbug::new(self.map.rand_pos()));
+            self.spawn_insect(Pillbug::new(self.map.rand_surface_pos()));
         }
         for _ in 0..STARTING_SPIDERS {
-            self.spawn_insect(Spider::new(self.map.rand_pos()));
+            self.spawn_insect(Spider::new(self.map.rand_surface_pos()));
         }
-        for _ in 0..10 {
-            self.spawn_insect(Centipede::new(self.map.rand_pos()));
+        for _ in 0..5 {
+            self.spawn_insect(Centipede::new(self.map.rand_surface_pos()));
         }
-
-        self.spawn_ant_colony(NEST_POS, FACTION_BLUE_ANTS);
-        self.spawn_ant_colony(NEST_POS_2, FACTION_RED_ANTS);
 
         self.spawn_player();
         // self.player_id = self.spawn_insect(InsectPlayer::new(Spider::new(self.map.rand_pos())));
@@ -340,7 +341,7 @@ impl Game {
                     "{}: Pop: {} Food: {}",
                     crate::draw::name(*faction),
                     pop,
-                    self.insects[queen].base.hunger
+                    self.insects.get(queen).map(|queen| queen.base.hunger).unwrap_or(0)
                 )
             } else {
                 format!("{}: {}", crate::draw::name(*faction), pop)

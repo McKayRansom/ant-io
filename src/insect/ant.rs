@@ -87,7 +87,7 @@ pub struct AntQueen {
 // const STARTING_FOOD: Hunger = 128;
 const ANT_FOOD_HUNGER: Hunger = 255;
 const ANT_QUEEN_INFO: InsectInfo = InsectInfo {
-    max_health: 10,
+    max_health: 20,
     max_speed: 3,
     damage: 1,
 };
@@ -292,7 +292,7 @@ impl Ant {
         self.timeout = self.timeout.saturating_sub(1);
 
         let seeking = if self.food.is_some() || self.timeout == 0 {
-            (Scents::Nest, CellType::Nest(base.faction))
+            (Scents::Nest, CellType::None)
         } else {
             (Scents::Food, CellType::Food)
         };
@@ -303,7 +303,7 @@ impl Ant {
                 return Some(percep.0);
             }
             // only attack spiders for now
-            if percep.1.faction == FACTION_SPIDER {
+            if percep.1.faction != base.faction {
                 // worker run away
                 // if seeking.1 != CellType::Nest(u8::MAX) {
                 //     let dist_approx = u8::MAX - self.nest_scent;

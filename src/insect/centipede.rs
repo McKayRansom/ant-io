@@ -17,7 +17,7 @@ const CENTIPEDE_MAX_LENGTH: usize = 8;
 
 const CENTEPEDE_INFO: InsectInfo = InsectInfo {
     max_health: 3,
-    max_speed: 1,
+    max_speed: 3,
     damage: 3,
 };
 
@@ -39,7 +39,7 @@ impl Centipede {
             let _ = map.free(pos, (base.faction, base.id));
         }
 
-        if self.body.front().unwrap() != &base.pos {
+        if self.body.front().is_some_and(|pos| pos != &base.pos) {
             self.body.pop_back();
             self.body.push_front(base.pos);
         }

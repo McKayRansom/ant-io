@@ -56,9 +56,10 @@ pub fn draw_map(map: &Map) {
             match cell.m_type {
                 CellType::Empty => {}
                 CellType::Food => draw_cell(map, point, FOOD_COLOR),
-                CellType::Nest(_) => draw_cell(map, point, colors::WHITE),
+                // CellType::Nest(_) => draw_cell(map, point, colors::WHITE),
                 CellType::Rock => draw_cell(map, point, colors::GRAY),
-                CellType::Wall => {}
+                CellType::Tunnel => draw_cell(map, point, colors::DARKGRAY),
+                _ => {}
             }
         }
     }

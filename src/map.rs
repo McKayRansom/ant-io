@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use macroquad::{
     math::{Rect, Vec2},
     prelude::rand,
@@ -29,9 +31,10 @@ pub enum CellType {
     #[default]
     Empty,
     Food,
-    Nest(Faction),
     Rock,
+    Tunnel,
     Wall,
+    None,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -45,9 +48,9 @@ impl Cell {
         self.m_type == flag
     }
     pub fn set_type(&mut self, flag: CellType) {
-        if self.m_type == CellType::Empty {
+        // if self.m_type == CellType::Empty {
             self.m_type = flag
-        }
+        // }
     }
     // pub fn clear_type(&mut self, _flag: CellType) {
     //     self.m_type = CellType::Empty
@@ -73,14 +76,12 @@ impl Cell {
     }
 
     pub fn occupied_id(&self) -> Id {
-        self.occupied
-            .map(|(_faction, id)| id)
-            .unwrap_or(0)
+        self.occupied.map(|(_faction, id)| id).unwrap_or(0)
     }
 
     pub fn try_occupy(&mut self, faction: Faction, id: Id) -> Result<(), OccupyError> {
         if self.m_type == CellType::Rock {
-            return Err(OccupyError::Solid);
+            return Err(OccupyError::Mineable);
         }
         if let Some((my_faction, my_id)) = self.occupied {
             if my_faction == faction {
@@ -124,19 +125,31 @@ impl Sight {
 
 pub enum OccupyError {
     Solid,
+    Mineable,
     Fight(Id),
 }
 
 impl Map {
-    pub fn new() -> Self {
-        let size = Pos::new(MAP_SIZE, MAP_SIZE);
+    pub fn new(size: Pos) -> Self {
         let mut map: Map = Self {
             occupied: vec![vec![Cell::default(); MAP_SIZE as usize]; MAP_SIZE as usize],
             size,
             camera: Camera::new(),
             // TODO: SPARSE??
-            scent_grids: vec![ScentGrid::new(size), ScentGrid::new(size),  ScentGrid::new(size)],
+            scent_grids: vec![
+                ScentGrid::new(size),
+                ScentGrid::new(size),
+                ScentGrid::new(size),
+            ],
         };
+        for y in size.y / 2..size.y {
+            for x in 0..size.x {
+                // just fill
+                map.get_cell_mut(Pos { x, y })
+                    .unwrap()
+                    .set_type(CellType::Rock);
+            }
+        }
         map.camera.zoom = 0.5;
         for _ in 0..10 {
             map.drop_rand_bunch(CellType::Rock);
@@ -147,12 +160,40 @@ impl Map {
         map
     }
 
-    pub fn rand_pos(&self) -> Pos {
-        Pos::rand(self.size)
+    pub fn surface_pos(&self, mut pos: Pos) -> Pos {
+        while self
+            .get_cell(pos)
+            .is_some_and(|cell| !(cell.is_type(CellType::Rock) || cell.is_type(CellType::Tunnel)))
+        {
+            pos.y += 1;
+        }
+
+        while self
+            .get_cell(pos)
+            .is_none_or(|cell| cell.is_type(CellType::Rock) || cell.is_type(CellType::Tunnel))
+        {
+            pos.y -= 1;
+            if pos.y <= 0 {
+                pos.y = 0;
+                return pos;
+            }
+        }
+
+        pos
+    }
+
+    pub fn rand_surface_pos(&self) -> Pos {
+        // linear for now (inefficent but w/e)
+        let pos: Pos = Pos {
+            x: rand::gen_range(0, self.size.x),
+            y: 0,
+        };
+
+        self.surface_pos(pos)
     }
 
     pub fn drop_rand_bunch(&mut self, t: CellType) {
-        let mut pos = self.rand_pos();
+        let mut pos = self.rand_surface_pos();
         for _ in 0..rand::gen_range(FOOD_DROP_MIN, FOOD_DROP_MAX) {
             let Some(cell) = self.get_cell_mut(pos) else {
                 continue;
@@ -161,7 +202,7 @@ impl Map {
 
             let new_pos = pos + dirs::rand();
             if self.is_valid(new_pos) {
-                pos = new_pos;
+                pos = self.surface_pos(new_pos);
             }
         }
     }
@@ -224,11 +265,32 @@ impl Map {
         }
     }
 
+    pub fn is_walkable(&self, pos: Pos) -> bool {
+        for x in -1..2 {
+            // exclusive
+            if self
+                .get_cell(Pos {
+                    x: pos.x + x,
+                    y: pos.y + 1,
+                })
+                .is_some_and(|cell| cell.is_type(CellType::Rock) || cell.is_type(CellType::Tunnel))
+            {
+                return true;
+            }
+        }
+        false
+    }
+
     pub(crate) fn occupy(
         &mut self,
         next_pos: Pos,
         (faction, id): (Faction, Id),
     ) -> Result<(), OccupyError> {
+        // can we even move here??
+        if !self.is_walkable(next_pos) {
+            return Err(OccupyError::Solid);
+        }
+
         self.get_cell_mut(next_pos)
             .ok_or(OccupyError::Solid)?
             .try_occupy(faction, id)
@@ -269,4 +331,39 @@ impl Map {
     //     self.occupied[pos.1 as usize][pos.0 as usize] = true;
     //     return false;
     // }
+}
+
+impl Display for Map {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for y in 0..self.size.y {
+            for x in 0..self.size.x {
+                write!(
+                    f,
+                    "{}",
+                    match self.get_cell(Pos { x, y }).unwrap().m_type {
+                        CellType::Empty => ' ',
+                        CellType::Tunnel => '_',
+                        CellType::Food => '*',
+                        CellType::Rock => '#',
+                        CellType::Wall => '?',
+                        CellType::None => '?',
+                    }
+                )?;
+            }
+            writeln!(f, "")?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod map_tests {
+    use super::*;
+
+    #[test]
+    fn test_generate() {
+        let map = Map::new(Pos { x: 64, y: 64 });
+        println!("{}", map);
+        assert!(false);
+    }
 }
