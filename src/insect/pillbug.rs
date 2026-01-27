@@ -45,7 +45,7 @@ impl InsectBehaviour for Pillbug {
             super::Seek::Enemy(_pos) => {
                 // curl up and hide
                 self.curled = true;
-                let _ = map.free(base.pos, (base.faction, base.id));
+                // let _ = map.free(base.pos, (base.faction, base.id));
                 base.speed = PILLBUG_CURL_TIME;
                 return None;
             }

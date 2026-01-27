@@ -93,6 +93,7 @@ impl Insect {
     }
 
     pub fn update(&mut self, map: &mut Map) -> Option<Event> {
+        self.base.update_physics(map);
         if !self.base.will_move() {
             return None;
         }
@@ -122,12 +123,15 @@ pub struct InsectInfo {
 
 // pub const DE
 
+pub const SUB_POS_SIZE: i16 = 8;
+
 pub type Id = u32;
 // pub
 
 /// Base class-ish for different insect types
 #[derive(Debug, Clone)]
 pub struct BaseInsect {
+    pub sub_pos: Pos,
     pub pos: Pos,
     pub dir: Pos,
     pub hunger: Hunger,
@@ -147,6 +151,7 @@ pub enum Seek {
 impl BaseInsect {
     pub fn new(pos: Pos, faction: Faction, info: &'static InsectInfo) -> Self {
         Self {
+            sub_pos: Pos::new(0, 0),
             pos,
             dir: dirs::rand(),
             hunger: rand::gen_range(u8::MAX as u16 / 2, u8::MAX as u16),
@@ -185,6 +190,94 @@ impl BaseInsect {
         } else {
             self.pos + self.dir
         }
+    }
+
+    fn update_sub_pos(&mut self) -> bool {
+        let mut moved = false;
+        // have we moved into a new tile??
+        if self.sub_pos.x > SUB_POS_SIZE {
+            self.pos.x += 1;
+            self.sub_pos.x = -SUB_POS_SIZE;
+            moved = true;
+        } else if self.sub_pos.x < -SUB_POS_SIZE {
+            self.pos.x -= 1;
+            self.sub_pos.x = SUB_POS_SIZE;
+            moved = true;
+        }
+        if self.sub_pos.y > SUB_POS_SIZE {
+            self.pos.y += 1;
+            self.sub_pos.y = -SUB_POS_SIZE;
+            moved = true;
+        } else if self.sub_pos.y < -SUB_POS_SIZE {
+            self.pos.y -= 1;
+            self.sub_pos.y = SUB_POS_SIZE;
+            moved = true;
+        }
+        moved
+    }
+
+    pub fn update_physics(&mut self, map: &mut Map) {
+        let _ = map.free(self.pos.top_left(self.sub_pos), (self.faction, self.id));
+        let _ = map.free(self.pos.top_right(self.sub_pos), (self.faction, self.id));
+        let _ = map.free(self.pos.bot_left(self.sub_pos), (self.faction, self.id));
+        let _ = map.free(self.pos.bot_right(self.sub_pos), (self.faction, self.id));
+
+        self.sub_pos = self.sub_pos + self.dir;
+        self.update_sub_pos();
+
+        let top_left = map.can_occupy(self.pos.top_left(self.sub_pos), (self.faction, self.id));
+        let top_right = map.can_occupy(self.pos.top_right(self.sub_pos), (self.faction, self.id));
+        let bot_left = map.can_occupy(self.pos.bot_left(self.sub_pos), (self.faction, self.id));
+        let bot_right = map.can_occupy(self.pos.bot_right(self.sub_pos), (self.faction, self.id));
+
+        if top_left.is_err() {
+            if top_right.is_err() {
+                self.sub_pos.y = 0;
+            } else if bot_left.is_err() {
+                self.sub_pos.x = 0;
+            } else {
+                self.sub_pos.x = 0;
+                self.sub_pos.y = 0;
+            }
+        }
+
+        if top_right.is_err() {
+            if top_left.is_err() {
+                self.sub_pos.y = 0;
+            } else if bot_right.is_err() {
+                self.sub_pos.x = 0;
+            } else {
+                self.sub_pos.x = 0;
+                self.sub_pos.y = 0;
+            }
+        }
+
+        if bot_right.is_err() {
+            if bot_left.is_err() {
+                self.sub_pos.y = 0;
+            } else if top_right.is_err() {
+                self.sub_pos.x = 0;
+            } else {
+                self.sub_pos.x = 0;
+                self.sub_pos.y = 0;
+            }
+        }
+
+        if bot_left.is_err() {
+            if bot_right.is_err() {
+                self.sub_pos.y = 0;
+            } else if top_left.is_err() {
+                self.sub_pos.x = 0;
+            } else {
+                self.sub_pos.x = 0;
+                self.sub_pos.y = 0;
+            }
+        }
+
+        let _ = map.occupy(self.pos.top_left(self.sub_pos), (self.faction, self.id));
+        let _ = map.occupy(self.pos.top_right(self.sub_pos), (self.faction, self.id));
+        let _ = map.occupy(self.pos.bot_left(self.sub_pos), (self.faction, self.id));
+        let _ = map.occupy(self.pos.bot_right(self.sub_pos), (self.faction, self.id));
     }
 
     pub fn will_move(&mut self) -> bool {
@@ -249,17 +342,20 @@ impl BaseInsect {
     pub fn try_move(&mut self, next_pos: Pos, map: &mut Map) -> Option<Event> {
         match map.occupy(next_pos, (self.faction, self.id)) {
             Ok(_) => {
-                let _ = map.free(self.pos, (self.faction, self.id));
+                // let _ = map.free(self.pos, (self.faction, self.id));
                 self.dir = next_pos - self.pos;
-                self.pos = next_pos;
+                // self.pos = next_pos;
                 // self.occupy = occupy;
+                // self.sub_pos = self.dir * SUB_POS_SIZE;
             }
             Err(OccupyError::Mineable) => {
-                map.get_cell_mut(next_pos).unwrap().set_type(CellType::Tunnel);
-                let _ = map.free(self.pos, (self.faction, self.id));
+                map.get_cell_mut(next_pos)
+                    .unwrap()
+                    .set_type(CellType::Tunnel);
+                // let _ = map.free(self.pos, (self.faction, self.id));
                 self.dir = next_pos - self.pos;
-                self.pos = next_pos;
-            },
+                // self.pos = next_pos;
+            }
             Err(OccupyError::Solid) => self.dir = rotate_right(self.dir),
             Err(OccupyError::Fight(id)) => {
                 // TODO: REAL FIGHTS
@@ -277,6 +373,6 @@ impl BaseInsect {
     }
 
     pub fn draw(&self, map: &Map) {
-        draw_cell_medium(map, self.pos, color(self.faction));
+        draw_cell_medium(map, self.pos, self.sub_pos, color(self.faction));
     }
 }

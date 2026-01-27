@@ -1,4 +1,4 @@
-use std::ops::{Add, Sub};
+use std::ops::{Add, Mul, Sub};
 
 use macroquad::prelude::rand;
 
@@ -87,6 +87,37 @@ impl Pos {
             y: rand::gen_range(0, max.y),
         }
     }
+    pub fn top_left(&self, sub_pos: Pos) -> Pos {
+        Pos {
+            x: self.x + if sub_pos.x < 0 { -1 } else { 0 },
+            y: self.y + if sub_pos.y < 0 { -1 } else { 0 },
+        }
+    }
+
+    pub fn top_right(&self, sub_pos: Pos) -> Pos {
+        Pos {
+            x: self.x + if sub_pos.x > 0 { 1 } else { 0 },
+            y: self.y + if sub_pos.y < 0 { -1 } else { 0 },
+        }
+    }
+
+    pub fn bot_right(&self, sub_pos: Pos) -> Pos {
+        Pos {
+            x: self.x + if sub_pos.x > 0 { 1 } else { 0 },
+            y: self.y + if sub_pos.y > 0 { 1 } else { 0 },
+        }
+    }
+
+    pub fn bot_left(&self, sub_pos: Pos) -> Pos {
+        Pos {
+            x: self.x + if sub_pos.x < 0 { -1 } else { 0 },
+            y: self.y + if sub_pos.y > 0 { 1 } else { 0 },
+        }
+    }
+
+    // pub fn horiz_normalized(&self) -> Self {
+    //     Self { x: (), y: () }
+    // }
 }
 
 impl From<(i16, i16)> for Pos {
@@ -105,6 +136,17 @@ impl Add<Pos> for Pos {
         Pos {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
+        }
+    }
+}
+
+impl Mul<i16> for Pos {
+    type Output = Pos;
+
+    fn mul(self, rhs: i16) -> Self::Output {
+        Pos {
+            x: self.x * rhs,
+            y: self.y * rhs,
         }
     }
 }

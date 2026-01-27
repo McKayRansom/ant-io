@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use crate::{
-    draw::{color, draw_cell_medium},
+    draw::{color, draw_cell, draw_cell_medium},
     insect::{Action, BaseInsect, Event, Hunger, Insect, InsectBehaviour, InsectInfo},
     map::{FACTION_CENTIPEDE, Map},
     pos::Pos,
@@ -107,7 +107,7 @@ impl InsectBehaviour for Centipede {
 
     fn draw(&self, base: &BaseInsect, map: &Map) {
         for pos in &self.body {
-            draw_cell_medium(map, *pos, color(base.faction));
+            draw_cell(map, *pos, color(base.faction));
         }
     }
 }

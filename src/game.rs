@@ -19,8 +19,8 @@ pub enum Speed {
     FAST,
 }
 
-const SPEED_FAST: f64 = 0.1;
-const SPEED_SLOW: f64 = 0.25;
+const SPEED_FAST: f64 = 0.02;
+const SPEED_SLOW: f64 = 0.1;
 
 impl Speed {
     pub fn val(&self) -> f64 {
@@ -123,7 +123,6 @@ impl Game {
         self.spawn_ant_colony(self.map.surface_pos(NEST_POS), FACTION_BLUE_ANTS);
         self.spawn_ant_colony(self.map.surface_pos(NEST_POS_2), FACTION_RED_ANTS);
 
-
         for _ in 0..STARTING_PILLBUGS {
             self.spawn_insect(Pillbug::new(self.map.rand_surface_pos()));
         }
@@ -172,6 +171,13 @@ impl Game {
                 self.show_scents = 0;
             } else {
                 self.show_scents = 2;
+            }
+        }
+        if is_key_pressed(KeyCode::Key4) {
+            if self.show_scents == 4 {
+                self.show_scents = 0;
+            } else {
+                self.show_scents = 4;
             }
         }
 
@@ -341,7 +347,10 @@ impl Game {
                     "{}: Pop: {} Food: {}",
                     crate::draw::name(*faction),
                     pop,
-                    self.insects.get(queen).map(|queen| queen.base.hunger).unwrap_or(0)
+                    self.insects
+                        .get(queen)
+                        .map(|queen| queen.base.hunger)
+                        .unwrap_or(0)
                 )
             } else {
                 format!("{}: {}", crate::draw::name(*faction), pop)

@@ -7,7 +7,7 @@ use macroquad::{
 use quad_lib::camera::Camera;
 
 use crate::{
-    insect::{Id, ant::ScentGrid},
+    insect::{Id, SUB_POS_SIZE, ant::ScentGrid},
     pos::{Pos, dirs},
 };
 
@@ -49,7 +49,7 @@ impl Cell {
     }
     pub fn set_type(&mut self, flag: CellType) {
         // if self.m_type == CellType::Empty {
-            self.m_type = flag
+        self.m_type = flag
         // }
     }
     // pub fn clear_type(&mut self, _flag: CellType) {
@@ -91,6 +91,20 @@ impl Cell {
             }
         }
         self.occupied = Some((faction, id));
+        Ok(())
+    }
+
+    pub fn can_occupy(&self, faction: Faction, _id: Id) -> Result<(), OccupyError> {
+        if self.m_type == CellType::Rock {
+            return Err(OccupyError::Mineable);
+        }
+        if let Some((my_faction, my_id)) = self.occupied {
+            if my_faction == faction {
+                return Ok(());
+            } else {
+                return Err(OccupyError::Fight(my_id));
+            }
+        }
         Ok(())
     }
 
@@ -226,6 +240,25 @@ impl Map {
             h: Self::TILE_SIZE_DEFAULT * self.camera.zoom,
         }
     }
+    pub fn screen_pos_sub(&self, pos: Pos, sub_pos: Pos) -> Vec2 {
+        let world_pos: Vec2 = Vec2 {
+            x: pos.x as f32 * Self::TILE_SIZE_DEFAULT
+                + sub_pos.x as f32 * (Self::TILE_SIZE_DEFAULT / (SUB_POS_SIZE * 2) as f32),
+            y: pos.y as f32 * Self::TILE_SIZE_DEFAULT
+                + sub_pos.y as f32 * (Self::TILE_SIZE_DEFAULT / (SUB_POS_SIZE * 2) as f32),
+        };
+        self.camera.to_screen(world_pos)
+    }
+
+    pub fn screen_rect_sub(&self, pos: Pos, sub_pos: Pos) -> Rect {
+        let pos = self.screen_pos_sub(pos, sub_pos);
+        Rect {
+            x: pos.x,
+            y: pos.y,
+            w: Self::TILE_SIZE_DEFAULT * self.camera.zoom,
+            h: Self::TILE_SIZE_DEFAULT * self.camera.zoom,
+        }
+    }
 
     pub fn update_size(&mut self, player_pos: Pos) {
         // self.camera.zoom = 0.5;
@@ -294,6 +327,21 @@ impl Map {
         self.get_cell_mut(next_pos)
             .ok_or(OccupyError::Solid)?
             .try_occupy(faction, id)
+    }
+
+    pub(crate) fn can_occupy(
+        &self,
+        next_pos: Pos,
+        (faction, id): (Faction, Id),
+    ) -> Result<(), OccupyError> {
+        // can we even move here??
+        if !self.is_walkable(next_pos) {
+            return Err(OccupyError::Solid);
+        }
+
+        self.get_cell(next_pos)
+            .ok_or(OccupyError::Solid)?
+            .can_occupy(faction, id)
     }
 
     pub(crate) fn free(

@@ -6,7 +6,7 @@ use macroquad::{
 use crate::{
     game::Game,
     insect::ant::Scents,
-    map::{CellType, FACTION_CENTIPEDE, FACTION_PILLBUG, FACTION_SPIDER, Faction, Map},
+    map::{CellType, FACTION_CENTIPEDE, FACTION_NONE, FACTION_PILLBUG, FACTION_SPIDER, Faction, Map},
     pos::Pos,
 };
 
@@ -16,9 +16,9 @@ pub const PILLBUG_COLOR: Color = colors::PINK;
 pub const SPIDER_COLOR: Color = colors::ORANGE;
 
 pub fn draw_game(game: &Game) {
-    draw_map(&game.map);
+    draw_map(&game.map, game.show_scents == 4);
 
-    if game.show_scents != 0 {
+    if game.show_scents > 0 && game.show_scents < 4 {
         draw_scents( &game.map, game.show_scents);
     }
     // for colony in &game.ant_colonies {
@@ -38,7 +38,7 @@ pub fn draw_game(game: &Game) {
     }
 }
 
-pub fn draw_map(map: &Map) {
+pub fn draw_map(map: &Map, draw_debug: bool) {
     let pos = map.screen_pos((0, 0).into());
     draw_rectangle(
         pos.x,
@@ -60,6 +60,15 @@ pub fn draw_map(map: &Map) {
                 CellType::Rock => draw_cell(map, point, colors::GRAY),
                 CellType::Tunnel => draw_cell(map, point, colors::DARKGRAY),
                 _ => {}
+            }
+            if draw_debug {
+                let faction = cell.occupied_faction();
+                if faction != FACTION_NONE {
+                    let mut color = color(faction);
+                    color.a = 0.5;
+
+                    draw_cell(map, point, color);
+                }
             }
         }
     }
@@ -98,8 +107,8 @@ pub fn draw_cell(map: &Map, pos: Pos, color: Color) {
     draw_rectangle(rect.x, rect.y, rect.w, rect.h, color);
 }
 
-pub fn draw_cell_medium(map: &Map, pos: Pos, color: Color) {
-    let rect = map.screen_rect(pos);
+pub fn draw_cell_medium(map: &Map, pos: Pos, sub_pos: Pos, color: Color) {
+    let rect = map.screen_rect_sub(pos, sub_pos);
     let margin = rect.w / 8.;
     draw_rectangle(
         rect.x + margin,

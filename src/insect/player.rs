@@ -51,11 +51,12 @@ impl InsectBehaviour for InsectPlayer {
             super::Action::Move(pos) => {
                 // WHAAAAA
                 // if BaseInsect::will_move(&mut self.speed, max_speed)
-                if base.will_move() {
-                    if let Some(event) = base.try_move(base.pos + pos, map) {
-                        return Some(event);
-                    }
-                }
+                base.dir = pos;
+                // if base.will_move() {
+                //     if let Some(event) = base.try_move(base.pos + pos, map) {
+                //         return Some(event);
+                //     }
+                // }
             }
             _ => {}
         }
