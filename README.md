@@ -2,6 +2,11 @@
 # Ant-io
 Small insect simulation at Huge scale. Lead your ant/bee/beetles/pillbug population to survive in a harsh insect-eats-insect world.
 
+## Realization:
+ - Game is boring b/c movement is boring AF!!!
+ - Either move with mouse or do true platformer movement!
+   - This for sure requires free movement/collision
+
 ## Singleplayer MVP
  - Choose your faction and battle for control of the lawn
  - You control just another bug in the battle for survival
